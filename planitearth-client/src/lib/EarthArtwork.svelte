@@ -20,6 +20,7 @@
     plasticBottleCount,
     showPasture,
     redMeatCount,
+    earthShaking,
   }: {
     transform: string;
     showFlightPath: boolean;
@@ -32,6 +33,7 @@
     plasticBottleCount: number;
     showPasture: boolean;
     redMeatCount: number;
+    earthShaking: boolean;
   } = $props();
 
   const ferries = [
@@ -102,6 +104,7 @@
 
 <svg
   class="earth-artwork"
+  class:earth-shaking={earthShaking}
   xmlns="http://www.w3.org/2000/svg"
   viewBox="0 0 804 806"
   aria-hidden="true"
@@ -144,6 +147,7 @@
       y="125"
       width="235"
       height="229"
+      transition:fade|global={{ duration: 700 }}
     />
     {#each livestockPositions.slice(0, redMeatCount) as position, index (index)}
       <image
@@ -152,7 +156,7 @@
         y={position.wheatY}
         width="22"
         height="27"
-        transition:fade={{ duration: 500, delay: index * 80 }}
+        transition:fade|global={{ duration: 500, delay: index * 80 }}
       />
       <image
         href={cowUrl}
@@ -160,7 +164,7 @@
         y={position.cowY}
         width="42"
         height="28"
-        transition:fade={{ duration: 500, delay: index * 80 + 40 }}
+        transition:fade|global={{ duration: 500, delay: index * 80 + 40 }}
       />
     {/each}
   {/if}
@@ -261,6 +265,18 @@
     transition: transform 2000ms cubic-bezier(0.33, 1, 0.68, 1);
   }
 
+  .earth-shaking {
+    animation: earth-shake 700ms ease-in-out infinite;
+  }
+
+  @keyframes earth-shake {
+    0%, 100% { translate: 0 0; }
+    20% { translate: -12px 3px; }
+    40% { translate: 11px -4px; }
+    60% { translate: -8px -2px; }
+    80% { translate: 8px 4px; }
+  }
+
   .ferry {
     opacity: 0;
     animation: ferry-fade-in 700ms ease-out forwards;
@@ -287,8 +303,7 @@
   }
 
   .pasture-decoration {
-    opacity: 0;
-    animation: ferry-fade-in 700ms ease-out forwards;
+    opacity: 1;
   }
 
   @keyframes ferry-fade-in {
@@ -298,17 +313,16 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .earth-shaking {
+      animation-duration: 1ms;
+    }
+
     .ferry,
     .flight-path,
     .plane-motion {
       animation-duration: 1ms;
       animation-delay: 0ms !important;
       transition-duration: 1ms;
-    }
-
-    .pasture-decoration {
-      animation-duration: 1ms;
-      animation-delay: 0ms !important;
     }
   }
 </style>

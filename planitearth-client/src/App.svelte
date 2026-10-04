@@ -6,6 +6,7 @@
   import FlightQuestionContent from "./lib/contents/FlightQuestionContent.svelte";
   import LandingContent from "./lib/contents/LandingContent.svelte";
   import PlasticQuestionContent from "./lib/contents/PlasticQuestionContent.svelte";
+  import ReadyImpactContent from "./lib/contents/ReadyImpactContent.svelte";
   import RedMeatQuestionContent from "./lib/contents/RedMeatQuestionContent.svelte";
 
   type Step =
@@ -16,7 +17,10 @@
     | "plastic-earth-intermission"
     | "plastics"
     | "meat-earth-intermission"
-    | "red-meat";
+    | "red-meat"
+    | "final-earth-intermission"
+    | "ready-impact"
+    | "impact-reveal";
   type Viewport = { width: number; height: number };
   type EarthLayout = {
     size: (viewport: Viewport) => number;
@@ -26,6 +30,9 @@
 
   let viewport = $state({ width: 0, height: 0 });
   let currentStep = $state<Step>("landing");
+  let impactRevealStarted = $state(false);
+  let earthShaking = $state(false);
+  let screenWhitening = $state(false);
   let answers = $state<{
     flights?: string;
     ferry?: string;
@@ -35,6 +42,7 @@
     redMeatCount?: number;
   }>({});
   let intermissionTimeout: ReturnType<typeof setTimeout> | undefined;
+  let impactRevealTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const earthTransitionDuration = 2000;
   const earthIntermissionDuration = 1000;
@@ -57,6 +65,15 @@
     showFlightPath: false,
   };
 
+  const readyImpactEarthLayout: EarthLayout = {
+    size: ({ width, height }) => Math.min(width * 0.42, height * 0.42, 340),
+    position: ({ width, height }, size) => ({
+      left: width / 2 - size / 2,
+      top: height * 0.05,
+    }),
+    showFlightPath: false,
+  };
+
   const stepStates: Record<Step, EarthLayout> = {
     landing: {
       size: ({ width, height }) =>
@@ -71,6 +88,9 @@
     "earth-intermission": { ...centeredEarthLayout, showFlightPath: true },
     "plastic-earth-intermission": centeredEarthLayout,
     "meat-earth-intermission": centeredEarthLayout,
+    "final-earth-intermission": centeredEarthLayout,
+    "ready-impact": readyImpactEarthLayout,
+    "impact-reveal": centeredEarthLayout,
     ferry: {
       size: ({ height }) => height * 2,
       position: ({ height }, size) => ({
@@ -113,11 +133,14 @@
     answers.flightExhaustLevel = level;
   }
 
-  function startIntermission(nextStep: "ferry" | "plastics" | "red-meat") {
+  function startIntermission(
+    nextStep: "ferry" | "plastics" | "red-meat" | "ready-impact",
+  ) {
     const intermissionStep: Record<typeof nextStep, Step> = {
       ferry: "earth-intermission",
       plastics: "plastic-earth-intermission",
       "red-meat": "meat-earth-intermission",
+      "ready-impact": "final-earth-intermission",
     };
     currentStep = intermissionStep[nextStep];
     clearTimeout(intermissionTimeout);
@@ -149,6 +172,21 @@
     answers.redMeatCount = count;
   }
 
+  function finishSurvey(count: number) {
+    saveRedMeatAnswer(count);
+    startIntermission("ready-impact");
+  }
+
+  function beginImpactReveal() {
+    impactRevealStarted = true;
+    currentStep = "impact-reveal";
+    clearTimeout(impactRevealTimeout);
+    impactRevealTimeout = setTimeout(() => {
+      earthShaking = true;
+      screenWhitening = true;
+    }, earthTransitionDuration);
+  }
+
   let earthTransform = $derived.by(() => {
     const { width, height } = viewport;
     if (!width || !height) return "translate3d(-1000px, -1000px, 0) scale(0)";
@@ -176,6 +214,7 @@
   });
 
   onMount(() => () => clearTimeout(intermissionTimeout));
+  onMount(() => () => clearTimeout(impactRevealTimeout));
 </script>
 
 <main>
@@ -203,8 +242,9 @@
     }
     showPasture={currentStep === "red-meat"}
     redMeatCount={currentStep === "red-meat" ? (answers.redMeatCount ?? 0) : 0}
+    earthShaking={earthShaking}
   />
-  <div class="content-stage">
+  <div class="content-stage" class:impact-fading={impactRevealStarted}>
     {#if currentStep === "landing"}
       <LandingContent onBegin={begin} />
     {:else if currentStep === "flights"}
@@ -221,11 +261,14 @@
       />
     {:else if currentStep === "red-meat"}
       <RedMeatQuestionContent
-        onNext={saveRedMeatAnswer}
+        onNext={finishSurvey}
         onSelectionChange={saveRedMeatAnswer}
       />
+    {:else if currentStep === "ready-impact" || currentStep === "impact-reveal"}
+      <ReadyImpactContent onYes={beginImpactReveal} />
     {/if}
   </div>
+  <div class:active={screenWhitening} class="impact-whiteout" aria-hidden="true"></div>
 </main>
 
 <style>
@@ -240,6 +283,33 @@
   .content-stage {
     position: absolute;
     inset: 0;
+    transition: opacity 700ms ease-out;
+  }
+
+  .content-stage.impact-fading {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .impact-whiteout {
+    position: fixed;
+    z-index: 2;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1400ms ease-in;
+  }
+
+  .impact-whiteout.active {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .content-stage,
+    .impact-whiteout {
+      transition-duration: 1ms;
+    }
   }
 
   .content-stage :global(.landing-content),
@@ -252,7 +322,8 @@
   }
 
   .content-stage :global(.plastic-question-content),
-  .content-stage :global(.red-meat-question-content) {
+  .content-stage :global(.red-meat-question-content),
+  .content-stage :global(.ready-impact-content) {
     position: absolute;
     top: 0;
     right: 0;
