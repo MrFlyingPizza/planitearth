@@ -2,8 +2,7 @@
   import { onMount } from 'svelte'
   import type { EarthView } from './earth-view'
 
-  let { reducedMotion, onready, onerror }: {
-    reducedMotion: boolean
+  let { onready, onerror }: {
     onready: (view: EarthView) => void
     onerror: (error: unknown) => void
   } = $props()
@@ -16,7 +15,7 @@
       try {
         const { createEarthView } = await import('./earth-view')
         if (controller.signal.aborted) return
-        view = await createEarthView(host, () => reducedMotion, controller.signal)
+        view = await createEarthView(host, controller.signal)
         if (!controller.signal.aborted) onready(view)
       } catch (error) {
         if (!controller.signal.aborted) onerror(error)

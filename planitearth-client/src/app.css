@@ -12,7 +12,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; }
 button, input { font: inherit; }
-button, a, input, summary { -webkit-tap-highlight-color: transparent; }
+button, input, summary { -webkit-tap-highlight-color: transparent; }
 button, summary { cursor: pointer; }
 button:focus-visible, a:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid #f3d28d; outline-offset: 5px; }
 h1, h2, p { margin: 0; }
@@ -23,15 +23,8 @@ h2 { font-weight: 500; }
 p { line-height: 1.65; }
 input { accent-color: #d4e6a4; }
 
-.app-header { min-height: 96px; padding: 24px 5%; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid #ffffff12; }
-.brand { color: #e8edd9; display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-size: 19px; letter-spacing: 2px; font-weight: 700; white-space: nowrap; }
-.brand span { font-weight: 400; margin-left: -4px; }
-.brand svg { width: 32px; height: 32px; color: var(--accent); }
-.header-tools { display: flex; gap: 24px; align-items: center; font-size: 12px; color: var(--muted); }
-.mock-badge { border: 1px solid #ffffff20; border-radius: 20px; padding: 7px 12px; }
-.motion-control, .skip-option { display: flex; gap: 8px; align-items: center; cursor: pointer; }
-.motion-control input { width: 16px; height: 16px; }
-.experience { min-height: 800px; height: calc(100svh - 174px); position: relative; isolation: isolate; overflow: hidden; }
+.skip-option { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.experience { min-height: 800px; height: 100svh; position: relative; isolation: isolate; overflow: hidden; }
 .experience.animating-stage { min-height: 520px; height: 100svh; }
 .planet-canvas { position: absolute; inset: 0; z-index: -1; }
 .planet-canvas canvas { display: block; }
@@ -65,9 +58,6 @@ input[type='range']:disabled { opacity: .35; cursor: default; }
 .skip-option { margin-top: 16px; font-size: 13px; }
 .skip-option input { width: 18px; height: 18px; }
 .validation { color: #ffd3b9; font-size: 13px; margin-top: 14px; }
-.planet-label { position: absolute; top: 78%; left: 56%; right: 4%; text-align: center; font-size: 10px; letter-spacing: 2px; color: var(--accent); }
-.label-line { width: 1px; height: 28px; background: #d4e6a44d; display: block; margin: 0 auto 13px; }
-.label-detail { display: block; color: var(--muted); font-size: 12px; letter-spacing: 0; margin-top: 12px; }
 .animation-caption { position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); width: min(640px, 88%); text-align: center; padding: 18px 22px; border-radius: 12px; background: #102e30ed; }
 .animation-caption h2 { font-size: 25px; margin-bottom: 10px; }
 .animation-caption > p:not(.eyebrow) { font-size: 14px; color: #c3d1c7; }
@@ -94,33 +84,17 @@ summary { padding: 10px 0; color: var(--accent); }
 .answer-summary h2 { font-size: 15px; margin-bottom: 8px; }
 .answer-summary strong { font-size: 12px; font-weight: 500; }
 .answer-summary p { color: var(--muted); font-size: 12px; margin-top: 8px; }
-footer { border-top: 1px solid #ffffff12; padding: 21px 5%; display: flex; justify-content: space-between; align-items: center; gap: 32px; color: var(--muted); }
-footer > span { font-size: 9px; letter-spacing: 2px; white-space: nowrap; }
-footer p { font-size: 10px; max-width: 580px; text-align: right; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 @media (min-width: 1500px) {
   .question-panel { margin-left: 12%; }
 }
 @media (max-width: 759px) {
-  .app-header { min-height: 88px; padding: 18px 6%; }
-  .brand { font-size: 14px; gap: 7px; letter-spacing: 1.3px; }
-  .brand svg { width: 27px; height: 27px; }
-  .header-tools { gap: 0; font-size: 10px; }
-  .mock-badge { display: none; }
-  .motion-control { max-width: 120px; line-height: 1.5; }
-  .experience { min-height: 1050px; height: calc(100svh - 88px); }
+  .experience { min-height: 1050px; height: 100svh; }
   .question-panel { margin-left: 6%; width: 88%; padding-top: 30px; }
   h1 { font-size: 32px; letter-spacing: -1px; }
   progress { margin-bottom: 24px; }
   .option { padding: 13px 14px; }
-  .planet-label { top: 93%; left: 6%; right: 6%; }
-  .label-line { display: none; }
   .results-stage { min-height: 1370px; }
   .results-panel { width: 88%; margin-left: 6%; padding: 30px 0; }
-  footer { flex-direction: column; align-items: flex-start; gap: 10px; padding: 20px 6%; }
-  footer p { text-align: left; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .loading-orbit { animation: none; }
 }

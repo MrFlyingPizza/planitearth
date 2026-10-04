@@ -22,7 +22,6 @@ export interface EarthView {
 
 export function createEarthView(
   parent: HTMLElement,
-  reducedMotion: () => boolean,
   signal: AbortSignal,
 ): Promise<EarthView> {
   return new Promise((resolve, reject) => {
@@ -103,6 +102,17 @@ export function createEarthView(
         this.factory = image('factory', -201, -49, 63)
         for (let i = 0; i < 4; i++) this.waste.push(image('waste', -162 + i * 24, 142 + (i % 2) * 10, 35))
         for (let i = 0; i < 3; i++) this.flowers.push(image('flower', 38 + i * 29, 28 + (i % 2) * 25, 35))
+        this.add.text(1000, 940, 'OUR SHARED HOME', {
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '11px',
+          color: '#d4e6a4',
+          letterSpacing: 2,
+        }).setOrigin(0.5)
+        this.add.text(1000, 966, 'An illustrative planet, shaped by everyday choices.', {
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '12px',
+          color: '#a3b9ad',
+        }).setOrigin(0.5)
         this.drawState()
         this.layout()
         this.scale.on('resize', this.layout, this)
@@ -121,8 +131,8 @@ export function createEarthView(
       private cameraTarget() {
         const width = parent.clientWidth, height = parent.clientHeight
         const zoom = this.focused
-          ? Math.min(width / 530, (height - 260) / 430, height * 0.3 / 240, 1.5)
-          : Math.min(width < 760 ? width / 640 : width / 1050, height / 820, 1)
+          ? Math.min(width / 480, (height - 260) / 430, height * 0.38 / 240, 1.5)
+          : Math.min(width < 760 ? width / 560 : width / 900, height / 680, 1.25)
         const screenX = this.focused || width < 760 ? width * 0.5 : width * 0.76
         const screenY = this.focused ? height * 0.35 : height * (width < 760 ? 0.78 : 0.48)
         return { zoom, scrollX: 1000 - width / 2 - (screenX - width / 2) / zoom,
@@ -162,12 +172,12 @@ export function createEarthView(
       private async moveCamera(focused: boolean) {
         this.focused = focused
         await this.tween({ targets: this.cameras.main, ...this.cameraTarget(),
-          duration: reducedMotion() ? 1 : 850, ease: 'Sine.easeInOut' })
+          duration: 850, ease: 'Sine.easeInOut' })
         this.layout()
       }
 
       private async animate(state: EarthState) {
-        await this.tween({ targets: this.state, ...state, duration: reducedMotion() ? 1 : 1300,
+        await this.tween({ targets: this.state, ...state, duration: 1300,
           ease: 'Sine.easeInOut', onUpdate: () => this.drawState() })
         this.drawState()
       }
@@ -176,7 +186,7 @@ export function createEarthView(
         return new Promise((done, fail) => {
           if (signal.aborted) { fail(cancelled()); return }
           const cancel = (error: Error) => { timer.remove(false); fail(error) }
-          const timer = this.time.delayedCall(reducedMotion() ? 1 : duration, () => {
+          const timer = this.time.delayedCall(duration, () => {
             pending.delete(cancel)
             done()
           })

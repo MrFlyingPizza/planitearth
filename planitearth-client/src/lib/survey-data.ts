@@ -1,6 +1,6 @@
-import { parseSurvey, type Survey } from './survey.ts'
+import type { Survey } from './survey'
 
-const response: Survey = {
+export const surveySequence: Survey = {
   id: 'everyday-earth-v1',
   questions: [
     {
@@ -64,24 +64,4 @@ const response: Survey = {
       ],
     },
   ],
-}
-
-// The JSON round-trip exercises the same validation boundary as a REST response.
-export async function fetchSurvey(signal: AbortSignal): Promise<Survey> {
-  await new Promise<void>((resolve, reject) => {
-    if (signal.aborted) {
-      reject(new DOMException('Survey request cancelled.', 'AbortError'))
-      return
-    }
-    const abort = () => {
-      clearTimeout(timer)
-      reject(new DOMException('Survey request cancelled.', 'AbortError'))
-    }
-    const timer = setTimeout(() => {
-      signal.removeEventListener('abort', abort)
-      resolve()
-    }, 450)
-    signal.addEventListener('abort', abort, { once: true })
-  })
-  return parseSurvey(JSON.parse(JSON.stringify(response)))
 }

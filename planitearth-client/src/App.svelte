@@ -1,12 +1,20 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
+  import type { TransitionConfig } from 'svelte/transition'
   import Planet from './lib/Planet.svelte'
-  import { fetchSurvey } from './lib/mock-api'
   import { baseline, metricLabels, metrics, recordAnswer, validateAnswer,
     type Answer, type AnswerRecord, type Question, type Survey } from './lib/survey'
+  import { surveySequence } from './lib/survey-data'
   import type { EarthView } from './lib/earth-view'
 
   type Phase = 'loading' | 'question' | 'focus' | 'effect' | 'return' | 'finale' | 'complete' | 'error'
+  function slideLeft(_node: Element, { duration = 650 }: { duration?: number } = {}): TransitionConfig {
+    return {
+      duration,
+      css: progress => `transform: translateX(${(1 - progress) * -100}vw)`,
+    }
+  }
+
   let survey = $state<{
     data: Survey | null
     history: AnswerRecord[]
@@ -26,14 +34,11 @@
     captionTitle: string
     caption: string
   }>({ phase: 'loading', errorMessage: '', captionTitle: '', caption: '' })
-  let preferences = $state({ prefersReducedMotion: false, shortAnimations: false })
   let elements = $state<{ heading?: HTMLHeadingElement; stage?: HTMLElement }>({})
   let revision = $state(0)
-  let reducedMotion = $derived(preferences.prefersReducedMotion || preferences.shortAnimations)
   let question = $derived(survey.data?.questions[survey.index])
   let finalState = $derived(survey.history.at(-1)?.after ?? baseline)
   let view: EarthView | null = null
-  let request: AbortController | null = null
   let disposed = false
 
   function fail(error: unknown) {
@@ -60,32 +65,13 @@
     void focusHeading()
   }
 
-  async function load() {
-    const controller = new AbortController()
-    request?.abort()
-    request = controller
-    try {
-      const response = await fetchSurvey(controller.signal)
-      if (controller.signal.aborted || disposed) return
-      survey.data = response
-      beginWhenReady()
-    } catch (error) {
-      if (!controller.signal.aborted && !disposed) fail(error)
-    }
-  }
-
   onMount(() => {
-    const media = matchMedia('(prefers-reduced-motion: reduce)')
-    const updatePreference = () => { preferences.prefersReducedMotion = media.matches }
-    updatePreference()
-    media.addEventListener('change', updatePreference)
-    void load()
+    survey.data = surveySequence
+    beginWhenReady()
     return () => {
       disposed = true
       revision += 1
-      request?.abort()
       view?.destroy()
-      media.removeEventListener('change', updatePreference)
     }
   })
 
@@ -109,9 +95,10 @@
       await earth.pause(1300)
     }
     if (run !== revision || disposed) return
+    experience.phase = 'complete'
+    await tick()
     await earth.returnToSurvey()
     if (run !== revision || disposed) return
-    experience.phase = 'complete'
     await focusHeading()
   }
 
@@ -141,10 +128,10 @@
         await finale(earth, run)
       } else {
         experience.phase = 'return'
-        await earth.returnToSurvey()
-        if (run !== revision || disposed) return
         survey.index += 1
         prepareQuestion(survey.data.questions[survey.index]!)
+        await earth.returnToSurvey()
+        if (run !== revision || disposed) return
         experience.phase = 'question'
         await focusHeading()
       }
@@ -155,15 +142,13 @@
 
   function restart() {
     revision += 1
-    request?.abort()
     view = null
-    survey.data = null
     survey.history = []
     survey.index = 0
     survey.validation = ''
     experience.caption = ''
+    experience.errorMessage = ''
     experience.phase = 'loading'
-    void load()
   }
 </script>
 
@@ -173,22 +158,11 @@
 </svelte:head>
 
 <main id="content">
-  <header class="app-header">
-    <a class="brand" href="#content" aria-label="Planit Earth home">
-      <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M9 21C9 10 17 7 24 8c0 9-5 16-13 15m1-3 8-9" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
-      PLANIT <span>EARTH</span>
-    </a>
-    <div class="header-tools">
-      <span class="mock-badge">Mock API · six questions</span>
-      <label class="motion-control"><input type="checkbox" bind:checked={preferences.shortAnimations} /> Short animations</label>
-    </div>
-  </header>
-
   <section bind:this={elements.stage} class:results-stage={experience.phase === 'complete'}
     class:animating-stage={experience.phase === 'focus' || experience.phase === 'effect' || experience.phase === 'return' || experience.phase === 'finale'}
     class="experience" aria-label="Interactive Earth survey">
     {#key revision}
-      <Planet {reducedMotion} onready={(earth) => { view = earth; beginWhenReady() }} onerror={fail} />
+      <Planet onready={(earth) => { view = earth; beginWhenReady() }} onerror={fail} />
     {/key}
 
     {#if experience.phase === 'loading'}
@@ -196,7 +170,7 @@
         <div class="loading-orbit" aria-hidden="true"></div>
         <p class="eyebrow">A LITTLE PERSPECTIVE</p>
         <h1>Preparing your planet</h1>
-        <p>Loading the mock survey and planet artwork…</p>
+        <p>Loading your survey and planet artwork…</p>
       </div>
     {:else if experience.phase === 'error'}
       <div class="center-panel">
@@ -205,8 +179,8 @@
         <p role="alert">{experience.errorMessage}</p>
         <button class="primary" onclick={restart}>Start again <span aria-hidden="true">↗</span></button>
       </div>
-    {:else if experience.phase === 'question' && question}
-      <div class="question-panel">
+    {:else if (experience.phase === 'question' || experience.phase === 'return') && question}
+      <div class="question-panel" transition:slideLeft inert={experience.phase !== 'question'}>
         <div class="progress-meta"><span>YOUR EVERYDAY FOOTPRINT</span><span>{survey.index + 1} / {survey.data?.questions.length}</span></div>
         <progress value={survey.index} max={survey.data?.questions.length ?? 6} aria-label="Questions completed"></progress>
         <p class="eyebrow">{question.category}</p>
@@ -251,9 +225,8 @@
         </form>
         <p class="panel-footnote">No perfect answers. Just a chance to see the connections.</p>
       </div>
-      <div class="planet-label" aria-hidden="true"><span class="label-line"></span>OUR SHARED HOME<span class="label-detail">An illustrative planet, shaped by everyday choices.</span></div>
     {:else if experience.phase === 'complete'}
-      <div class="results-panel">
+      <div class="results-panel" transition:slideLeft>
         <p class="eyebrow">THE BIGGER PICTURE</p>
         <h1 bind:this={elements.heading} tabindex="-1">Small choices.<br />Shared planet.</h1>
         <p>Here’s how your answers shaped this illustration. These are qualitative visual signals, not measured environmental impacts.</p>
@@ -286,8 +259,4 @@
       </div>
     {/if}
   </section>
-  <footer>
-    <span>ONE PLANET. MANY POSSIBILITIES.</span>
-    <p>Illustrative, not a scientific prediction. Visuals represent patterns at a shared scale—not one person changing the entire Earth.</p>
-  </footer>
 </main>

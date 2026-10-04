@@ -21,13 +21,12 @@ pnpm build
 
 - [App.svelte](src/App.svelte): survey controls, progression, feedback, and results.
   Related reactive data is grouped into `$state` objects for survey data/input,
-  experience phase/feedback, motion preferences, and DOM element references;
-  `$derived` runes expose the current question, final planet state, and motion mode.
-- [survey.ts](src/lib/survey.ts): response validation, input validation, normalized
-  Earth state, and immutable before/after records.
-- [mock-api.ts](src/lib/mock-api.ts): an explicit mock API adapter returning six
-  questions after a cancellable 450 ms delay. No backend or external assets are
-  needed, and no answers are transmitted.
+  experience phase/feedback, and DOM element references; `$derived` runes expose
+  the current question and final planet state.
+- [survey-data.ts](src/lib/survey-data.ts): the preprogrammed, typed question and
+  answer sequence. Change the local sequence to control the experience.
+- [survey.ts](src/lib/survey.ts): input validation, normalized Earth state, and
+  before/after records.
 - [Planet.svelte](src/lib/Planet.svelte): Phaser mounting and teardown.
 - [earth-view.ts](src/lib/earth-view.ts): SVG loading, camera compositions,
   completion-driven animation promises, and lifecycle cancellation.
@@ -41,7 +40,7 @@ the final summary communicate its meaning without relying on the canvas.
 
 ## Effect contract
 
-The response is `{ id, questions }`. Each question has an ID, title, description,
+The sequence is `{ id, questions }`. Each question has an ID, title, description,
 category, and discriminated `type`:
 
 - `single`: options with IDs, labels, explanations, and `effects`.
@@ -64,29 +63,18 @@ and habitat diversity. Larger bars mean more of the named property, not a
 universal good/bad score. All magnitudes are authored visual signals, not
 scientific measurements or personal footprint calculations.
 
-## Replacing the mock with REST
-
-Replace the delay and local JSON round-trip in `fetchSurvey` with a request:
-
-```ts
-const response = await fetch(`${import.meta.env.VITE_API_URL}/survey`, { signal })
-if (!response.ok) throw new Error(`Survey request failed (${response.status}).`)
-return parseSurvey(await response.json())
-```
-
-Configure `VITE_API_URL` for the backend and allow the client origin through
-server CORS. Keep response validation and visible errors; do not fall back to
-mock data after a failed real request. Answer persistence is not implemented.
+The sequence is authored directly in `survey-data.ts`; questions, answers, and
+effects are bundled with the frontend. There are no network requests for survey
+content or answer submission. To change the experience, edit that typed sequence.
 
 ## Accessibility and verification
 
 Controls use native HTML inputs, fieldsets, keyboard focus, and validation
-feedback. OS reduced-motion preferences are respected; the header also offers
-short animations. Requests and pending animations cancel on teardown. Restart
-creates a fresh scene and resets the answer history.
+feedback. Pending animations cancel on teardown. Restart creates a fresh scene
+and resets the answer history.
 
 `pnpm test` uses Node's built-in test runner and TypeScript stripping to cover
-the mock contract, all answer types, endpoint values, accumulation, unassessed
-answers, duplicate submission, malformed responses, and request cancellation.
+the programmed question sequence, all answer types, endpoint values,
+accumulation, unassessed answers, and duplicate submission.
 Browser checks should also cover the six-question flow, responsive resizing,
 finale, restart, and reduced motion.

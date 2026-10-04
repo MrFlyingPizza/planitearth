@@ -1,15 +1,14 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { baseline, metrics, parseSurvey, recordAnswer, stateFromHistory, validateAnswer,
+import { baseline, metrics, recordAnswer, stateFromHistory, validateAnswer,
   type Answer, type AnswerRecord } from '../src/lib/survey.ts'
-import { fetchSurvey } from '../src/lib/mock-api.ts'
+import { surveySequence as survey } from '../src/lib/survey-data.ts'
 
-const survey = await fetchSurvey(new AbortController().signal)
-
-test('mock API returns six validated questions and all three input types', async () => {
+test('programmed survey sequence contains all supported question types', () => {
   assert.equal(survey.questions.length, 6)
   assert.deepEqual(new Set(survey.questions.map(q => q.type)), new Set(['single', 'multi', 'slider']))
-  assert.notEqual(await fetchSurvey(new AbortController().signal), survey)
+  assert.equal(new Set(survey.questions.map(q => q.id)).size, survey.questions.length)
+  assert.ok(survey.questions.every(q => q.title && q.description && q.category))
 })
 
 test('all options and slider endpoints produce bounded, independent snapshots', () => {
@@ -73,32 +72,4 @@ test('six-answer history accumulates and replay does not change recorded state',
   assert.equal(JSON.stringify(history), beforeReplay)
   assert.throws(() => recordAnswer(survey.questions[0]!, 'active', history), /already/)
   assert.throws(() => recordAnswer(survey.questions[0]!, '', []), /Choose/)
-})
-
-test('API validation rejects malformed data instead of returning sample success', () => {
-  assert.throws(() => parseSurvey({ id: 'empty', questions: [] }), /no questions/)
-  const clone = () => JSON.parse(JSON.stringify(survey))
-  const unsupported = clone()
-  unsupported.questions[0].options[0].effects = { temperature: 0.2 }
-  assert.throws(() => parseSurvey(unsupported), /Unsupported effect/)
-  const outOfRange = clone()
-  outOfRange.questions[0].options[0].effects.transport = 2
-  assert.throws(() => parseSurvey(outOfRange), /range/)
-  const duplicate = clone()
-  duplicate.questions[1].id = duplicate.questions[0].id
-  assert.throws(() => parseSurvey(duplicate), /Duplicate question/)
-  const slider = clone()
-  slider.questions[1].step = 0
-  assert.throws(() => parseSurvey(slider), /slider/)
-  const missingReference = clone()
-  missingReference.questions[3].baseEffects = {}
-  assert.throws(() => parseSurvey(missingReference), /reference/)
-})
-
-test('mock requests can be cancelled before and during loading', async () => {
-  const controller = new AbortController()
-  const request = fetchSurvey(controller.signal)
-  controller.abort()
-  await assert.rejects(request, { name: 'AbortError' })
-  await assert.rejects(fetchSurvey(controller.signal), { name: 'AbortError' })
 })
