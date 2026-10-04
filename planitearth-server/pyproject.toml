@@ -1,0 +1,23 @@
+[project]
+name = "planitearth-server"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Richard Gao", email = "richard.gao@aquaticinformatics.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]>=0.142.2",
+    "pre-commit>=4.6.2",
+]
+
+[project.scripts]
+planitearth-server = "planitearth_server:main"
+
+[tool.fastapi]
+entrypoint = "planitearth_server:app"
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"
