@@ -209,14 +209,6 @@
       />
     {/each}
   {/if}
-  <image
-    href={eyesUrl}
-    x={eyeBase.x + eyeOffset.x}
-    y={eyeBase.y + eyeOffset.y}
-    width={eyeBase.width}
-    height={eyeBase.height}
-    opacity="0.95"
-  />
   {#if showFlightPath}
     <path
       id="flight-path-front"
@@ -278,6 +270,14 @@
       transition:fade={{ duration: 500 }}
     />
   {/each}
+  <image
+    href={eyesUrl}
+    x={eyeBase.x + eyeOffset.x}
+    y={eyeBase.y + eyeOffset.y}
+    width={eyeBase.width}
+    height={eyeBase.height}
+    opacity="0.95"
+  />
   {#if showFlightPath}
     <g class="plane-motion" class:fade-out={fadeFlightPath}>
       <animateMotion dur="12s" repeatCount="indefinite" rotate="auto">
