@@ -37,9 +37,9 @@
   } = $props();
 
   const ferries = [
-    { x: 510, y: 285 },
-    { x: 570, y: 285 },
-    { x: 630, y: 285 },
+    { x: 500, y: 278 },
+    { x: 570, y: 295 },
+    { x: 640, y: 286 },
   ];
   const flightExhaustParticles = Array.from({ length: 100 }, (_, index) => {
     const angle = (index / 100) * Math.PI * 2;
