@@ -1,6 +1,7 @@
 <script lang="ts">
   import { cubicOut } from "svelte/easing";
   import { fly } from "svelte/transition";
+  import { Button } from "$lib/components/ui/button/index.js";
 
   let { onNext }: { onNext: (answer: string) => void } = $props();
 
@@ -14,7 +15,7 @@
   in:fly={{ y: -120, duration: 2000, easing: cubicOut }}
   out:fly={{ y: 120, duration: 2000, easing: cubicOut }}
 >
-  <h1 id="flight-question" class="text-header">How many flights do you take per year?</h1>
+  <h1 id="flight-question" class="text-display">How many flights do you take per year?</h1>
   <div class="flight-control">
     <label class="sr-only" for="flight-slider">Flights per year</label>
     <input
@@ -32,9 +33,12 @@
       {/each}
     </div>
   </div>
-  <button class="button next-button" type="button" onclick={() => onNext(options[selectedIndex])}>
+  <Button
+    class="mt-10 min-h-[4.5rem] min-w-[13rem] rounded-[0.25rem] px-6 text-2xl font-bold"
+    onclick={() => onNext(options[selectedIndex])}
+  >
     Next
-  </button>
+  </Button>
 </section>
 
 <style>
@@ -75,10 +79,6 @@
     margin-top: 0.5rem;
     font-size: 1rem;
     line-height: 1.25;
-  }
-
-  .next-button {
-    margin-top: 2.5rem;
   }
 
   .sr-only {

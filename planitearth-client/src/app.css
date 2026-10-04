@@ -1,95 +1,84 @@
-body {
-  margin: 0;
-  padding: 0;
-  background: #282b41;
-  color: #ffffff;
-  font-family: Inter, sans-serif;
-}
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn-svelte/tailwind.css";
+@import "@fontsource-variable/inter";
+@plugin "@tailwindcss/typography";
 
-html,
-body,
-#app {
-  min-width: 320px;
-  min-height: 100%;
-}
-
-button {
-  font-family: inherit;
+@theme inline {
+  --font-sans: "Inter Variable", sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --text-display: 4rem;
+  --text-display--line-height: 1.05;
+  --text-display--font-weight: 700;
+  --text-display--letter-spacing: -0.055em;
+  --text-subheading: 2rem;
+  --text-subheading--line-height: 1.35;
+  --text-subheading--font-weight: 400;
+  --text-copy: 2rem;
+  --text-copy--line-height: 1.35;
+  --text-copy--font-weight: 400;
 }
 
 :root {
-  --font-size-heading: 4rem;
-  --font-size-subtitle: 2rem;
-  --font-size-body: 2rem;
-  --font-size-button: 1.5rem;
-  --color-background: #282b41;
-  --color-text: #ffffff;
-  --color-button: #4aff8f;
-  --color-button-hover: #6bffaa;
-  --color-button-text: #282b41;
+  --background: #282b41;
+  --foreground: #ffffff;
+  --primary: #4aff8f;
+  --primary-foreground: #282b41;
+  --secondary: #373b55;
+  --secondary-foreground: #ffffff;
+  --muted: #373b55;
+  --muted-foreground: #c4c6d2;
+  --accent: #4aff8f;
+  --accent-foreground: #282b41;
+  --destructive: #ef4444;
+  --border: rgb(255 255 255 / 24%);
+  --input: rgb(255 255 255 / 24%);
+  --ring: #4aff8f;
+  --radius: 0.25rem;
 }
 
-.text-title,
-.text-header {
-  margin: 0;
-  font-size: var(--font-size-heading);
-  line-height: 1.05;
-  font-weight: 700;
-  letter-spacing: -0.055em;
-}
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
 
-.text-subtitle {
-  margin: 0;
-  font-size: var(--font-size-subtitle);
-  line-height: 1.35;
-  font-weight: 400;
-}
+  html {
+    @apply font-sans;
+  }
 
-.text-body {
-  margin: 0;
-  font-size: var(--font-size-body);
-  line-height: 1.35;
-  font-weight: 400;
-}
+  body {
+    @apply min-h-screen min-w-80 bg-background text-foreground;
+    margin: 0;
+  }
 
-.button {
-  min-width: 13rem;
-  min-height: 4.5rem;
-  padding: 0.75rem 1.5rem;
-  border: 0;
-  border-radius: 0.25rem;
-  background: var(--color-button);
-  color: var(--color-button-text);
-  font: inherit;
-  font-size: var(--font-size-button);
-  font-weight: 700;
-  cursor: pointer;
-  transition: background-color 120ms ease, transform 120ms ease;
-}
-
-.button:hover {
-  background: var(--color-button-hover);
-}
-
-.button:active {
-  transform: translateY(2px);
-}
-
-.button:focus-visible {
-  outline: 3px solid var(--color-text);
-  outline-offset: 4px;
-}
-
-@media (max-width: 900px) {
-  :root {
-    --font-size-heading: clamp(2.75rem, 12vw, 4rem);
-    --font-size-subtitle: clamp(1.25rem, 5vw, 2rem);
-    --font-size-body: clamp(1.25rem, 5vw, 2rem);
+  #app {
+    min-height: 100%;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .button {
-    transition: none;
+@media (max-width: 900px) {
+  .text-display {
+    font-size: clamp(2.75rem, 12vw, 4rem);
+  }
+
+  .text-subheading,
+  .text-copy {
+    font-size: clamp(1.25rem, 5vw, 2rem);
   }
 }

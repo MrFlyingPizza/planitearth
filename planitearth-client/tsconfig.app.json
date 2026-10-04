@@ -5,7 +5,12 @@
     "target": "es2023",
     "module": "esnext",
     "paths": {
-      "assets/*": ["./src/assets/*"]
+      "assets/*": ["./src/assets/*"],
+      "$lib": ["./src/lib"],
+      "$lib/*": ["./src/lib/*"],
+      "$lib/components": ["./src/lib/components"],
+      "$lib/components/ui": ["./src/lib/components/ui"],
+      "$lib/utils": ["./src/lib/utils"]
     },
     "types": ["svelte", "vite/client", "node"],
     "allowArbitraryExtensions": true,

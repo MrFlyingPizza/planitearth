@@ -1,13 +1,20 @@
 <script lang="ts">
+  import { Button } from "$lib/components/ui/button/index.js";
+
   let { onBegin }: { onBegin: () => void } = $props();
 </script>
 
 <section class="landing-content">
   <div class="copy-content">
-    <h1 class="text-title">PlanItEarth</h1>
-    <p class="text-subtitle subtitle">Helping the planet? Plan it!</p>
-    <p class="text-body intro">Let's find out what your climate action looks like.</p>
-    <button class="button" type="button" onclick={onBegin}>Begin</button>
+    <h1 class="text-display">PlanItEarth</h1>
+    <p class="text-subheading subtitle">Helping the planet? Plan it!</p>
+    <p class="text-copy intro">Let's find out what your climate action looks like.</p>
+    <Button
+      class="min-h-[4.5rem] min-w-[13rem] rounded-[0.25rem] px-6 text-2xl font-bold"
+      onclick={onBegin}
+    >
+      Begin
+    </Button>
   </div>
 </section>
 

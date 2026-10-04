@@ -1,12 +1,22 @@
 <script lang="ts">
+  import './app.css';
   import { onMount } from "svelte";
   import EarthArtwork from "./lib/EarthArtwork.svelte";
   import FerryQuestionContent from "./lib/contents/FerryQuestionContent.svelte";
-  import FlightFactContent from "./lib/contents/FlightFactContent.svelte";
   import FlightQuestionContent from "./lib/contents/FlightQuestionContent.svelte";
   import LandingContent from "./lib/contents/LandingContent.svelte";
+  import PlasticQuestionContent from "./lib/contents/PlasticQuestionContent.svelte";
+  import RedMeatQuestionContent from "./lib/contents/RedMeatQuestionContent.svelte";
 
-  type Step = "landing" | "flights" | "flight-fact" | "earth-intermission" | "ferry";
+  type Step =
+    | "landing"
+    | "flights"
+    | "earth-intermission"
+    | "ferry"
+    | "plastic-earth-intermission"
+    | "plastics"
+    | "meat-earth-intermission"
+    | "red-meat";
   type Viewport = { width: number; height: number };
   type EarthLayout = {
     size: (viewport: Viewport) => number;
@@ -16,7 +26,12 @@
 
   let viewport = $state({ width: 0, height: 0 });
   let currentStep = $state<Step>("landing");
-  let answers = $state<{ flights?: string; ferry?: string }>({});
+  let answers = $state<{
+    flights?: string;
+    ferry?: string;
+    plasticBottles?: number;
+    redMeatCount?: number;
+  }>({});
   let intermissionTimeout: ReturnType<typeof setTimeout> | undefined;
 
   const earthTransitionDuration = 2000;
@@ -51,13 +66,33 @@
       showFlightPath: false,
     },
     flights: flightEarthLayout,
-    "flight-fact": flightEarthLayout,
-    "earth-intermission": centeredEarthLayout,
+    "earth-intermission": { ...centeredEarthLayout, showFlightPath: true },
+    "plastic-earth-intermission": centeredEarthLayout,
+    "meat-earth-intermission": centeredEarthLayout,
     ferry: {
       size: ({ height }) => height * 2,
       position: ({ height }, size) => ({
         left: -size * 0.42,
         top: height - size * 0.45,
+      }),
+      showFlightPath: false,
+    },
+    plastics: {
+      size: ({ width, height }) =>
+        width < 900
+          ? Math.min(width * 0.48, height * 0.72, 440)
+          : Math.min(width * 0.62, height * 0.9, 720),
+      position: ({ width, height }, size) => ({
+        left: width - size,
+        top: height / 2 - size / 2,
+      }),
+      showFlightPath: false,
+    },
+    "red-meat": {
+      size: ({ width, height }) => Math.min(width, height * 1.8),
+      position: ({ height }, size) => ({
+        left: -size * 0.25,
+        top: height - size * 0.5,
       }),
       showFlightPath: false,
     },
@@ -69,19 +104,39 @@
 
   function next(answer: string) {
     answers.flights = answer;
-    currentStep = "flight-fact";
+    startIntermission("ferry");
   }
 
-  function continueToFerry() {
-    currentStep = "earth-intermission";
+  function startIntermission(nextStep: "ferry" | "plastics" | "red-meat") {
+    const intermissionStep: Record<typeof nextStep, Step> = {
+      ferry: "earth-intermission",
+      plastics: "plastic-earth-intermission",
+      "red-meat": "meat-earth-intermission",
+    };
+    currentStep = intermissionStep[nextStep];
+    clearTimeout(intermissionTimeout);
     intermissionTimeout = setTimeout(
-      () => (currentStep = "ferry"),
+      () => currentStep = nextStep,
       earthTransitionDuration + earthIntermissionDuration,
     );
   }
 
   function saveFerryAnswer(answer: string) {
     answers.ferry = answer;
+    startIntermission("plastics");
+  }
+
+  function savePlasticAnswer(bottleCount: number) {
+    answers.plasticBottles = bottleCount;
+  }
+
+  function nextFromPlastics(bottleCount: number) {
+    answers.plasticBottles = bottleCount;
+    startIntermission("red-meat");
+  }
+
+  function saveRedMeatAnswer(count: number) {
+    answers.redMeatCount = count;
   }
 
   let earthTransform = $derived.by(() => {
@@ -116,17 +171,36 @@
 <main>
   <EarthArtwork
     transform={earthTransform}
-    showFlightPath={stepStates[currentStep].showFlightPath}
+    showFlightPath={stepStates[currentStep].showFlightPath || currentStep === "ferry"}
+    showFerries={currentStep === "ferry" || currentStep === "plastic-earth-intermission"}
+    fadeFlightPath={currentStep === "ferry"}
+    fadeDecorations={currentStep === "plastics"}
+    fadeBottles={currentStep === "red-meat"}
+    plasticBottleCount={
+      currentStep === "plastics" || currentStep === "meat-earth-intermission" || currentStep === "red-meat"
+        ? (answers.plasticBottles ?? 1)
+        : 0
+    }
+    showPasture={currentStep === "red-meat"}
+    redMeatCount={currentStep === "red-meat" ? (answers.redMeatCount ?? 0) : 0}
   />
   <div class="content-stage">
     {#if currentStep === "landing"}
       <LandingContent onBegin={begin} />
     {:else if currentStep === "flights"}
       <FlightQuestionContent onNext={next} />
-    {:else if currentStep === "flight-fact"}
-      <FlightFactContent onContinue={continueToFerry} />
     {:else if currentStep === "ferry"}
       <FerryQuestionContent onNext={saveFerryAnswer} />
+    {:else if currentStep === "plastics"}
+      <PlasticQuestionContent
+        onNext={nextFromPlastics}
+        onSelectionChange={savePlasticAnswer}
+      />
+    {:else if currentStep === "red-meat"}
+      <RedMeatQuestionContent
+        onNext={saveRedMeatAnswer}
+        onSelectionChange={saveRedMeatAnswer}
+      />
     {/if}
   </div>
 </main>
@@ -147,8 +221,15 @@
 
   .content-stage :global(.landing-content),
   .content-stage :global(.question-content),
-  .content-stage :global(.fact-content),
   .content-stage :global(.ferry-question-content) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+  }
+
+  .content-stage :global(.plastic-question-content),
+  .content-stage :global(.red-meat-question-content) {
     position: absolute;
     top: 0;
     right: 0;
