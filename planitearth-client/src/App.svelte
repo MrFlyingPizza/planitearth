@@ -1,5 +1,6 @@
 <script lang="ts">
   import './app.css';
+  import { Info } from "@lucide/svelte";
   import { onMount } from "svelte";
   import EarthArtwork from "./lib/EarthArtwork.svelte";
   import FerryQuestionContent from "./lib/contents/FerryQuestionContent.svelte";
@@ -42,6 +43,7 @@
   let feedbackRequested = false;
   let feedbackResult = $state<ImpactFeedback | undefined>();
   let feedbackError = $state<string | undefined>();
+  let attributionOpen = $state(false);
   const responses = createQuestionResponses();
   let intermissionTimeout: ReturnType<typeof setTimeout> | undefined;
   let impactRevealTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -317,6 +319,23 @@
 </script>
 
 <main>
+  <div class="attribution-control" class:is-open={attributionOpen}>
+    <button
+      class="attribution-trigger"
+      type="button"
+      aria-label="Show application attribution"
+      aria-describedby="attribution-tooltip"
+      aria-expanded={attributionOpen}
+      onclick={() => attributionOpen = !attributionOpen}
+    >
+      <Info size={16} aria-hidden="true" />
+    </button>
+    <div class="attribution-tooltip" id="attribution-tooltip" role="tooltip">
+      <p><strong>Designers</strong> Honbete Lee and Kobe Duyvestyn</p>
+      <p><strong>Developers</strong> Jarel Tan and Richard Gao</p>
+      <p>Made for SFU Surge StormHacks 2026</p>
+    </div>
+  </div>
   <EarthArtwork
     transform={earthTransform}
     showFlightPath={stepStates[currentStep].showFlightPath || currentStep === "ferry"}
@@ -391,6 +410,77 @@
     min-height: 100svh;
     overflow: hidden;
     isolation: isolate;
+  }
+
+  .attribution-control {
+    position: fixed;
+    z-index: 3;
+    bottom: 0.75rem;
+    right: 0.75rem;
+  }
+
+  .attribution-trigger {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border: 1px solid rgb(255 255 255 / 14%);
+    border-radius: 9999px;
+    background: rgb(40 43 65 / 46%);
+    color: rgb(255 255 255 / 62%);
+    cursor: pointer;
+    opacity: 0.72;
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease;
+  }
+
+  .attribution-trigger:hover,
+  .attribution-trigger:focus-visible {
+    border-color: #4aff8f;
+    background: #373b55;
+    color: #fff;
+    opacity: 1;
+  }
+
+  .attribution-trigger:focus-visible {
+    outline: 2px solid #4aff8f;
+    outline-offset: 3px;
+  }
+
+  .attribution-tooltip {
+    position: absolute;
+    bottom: calc(100% + 0.625rem);
+    right: 0;
+    width: min(20rem, calc(100vw - 2rem));
+    padding: 1rem 1.125rem;
+    border: 1px solid rgb(255 255 255 / 20%);
+    border-radius: 0.5rem;
+    background: #282b41;
+    box-shadow: 0 0.75rem 2rem rgb(0 0 0 / 28%);
+    color: #fff;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(0.25rem);
+    transition: opacity 150ms ease, transform 150ms ease, visibility 150ms;
+    visibility: hidden;
+  }
+
+  .attribution-tooltip p {
+    margin: 0;
+  }
+
+  .attribution-tooltip p + p {
+    margin-top: 0.5rem;
+  }
+
+  .attribution-control:hover .attribution-tooltip,
+  .attribution-control:focus-within .attribution-tooltip,
+  .attribution-control.is-open .attribution-tooltip {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+    visibility: visible;
   }
 
   .content-stage {
