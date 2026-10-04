@@ -10,12 +10,13 @@ import sunUrl from '../assets/earth/sun.svg?url&no-inline'
 import windUrl from '../assets/earth/wind.svg?url&no-inline'
 import factoryUrl from '../assets/earth/factory.svg?url&no-inline'
 import flowerUrl from '../assets/earth/flower.svg?url&no-inline'
-import { baseline, type EarthState } from './survey'
+import carUrl from '../assets/earth/car.svg?url&no-inline'
+import { baseline, type AnswerScene, type CameraTarget, type EarthState, type ObjectAnimation } from './survey'
 
 export interface EarthView {
-  focusEarth(): Promise<void>
   returnToSurvey(): Promise<void>
-  animateTo(state: EarthState): Promise<void>
+  showStep(state: EarthState, scene: AnswerScene): Promise<void>
+  resetToBaseline(): Promise<void>
   pause(duration: number): Promise<void>
   destroy(): void
 }
@@ -56,6 +57,11 @@ export function createEarthView(
     class EarthScene extends Phaser.Scene {
       private state: EarthState = { ...baseline }
       private focused = false
+      private focus: CameraTarget | null = null
+      private readonly objects = new Map<string, Phaser.GameObjects.Image>()
+      private readonly objectHomes = new Map<string, {
+        x: number; y: number; alpha: number; scaleX: number; scaleY: number; angle: number
+      }>()
       private haze!: Phaser.GameObjects.Image
       private farmland!: Phaser.GameObjects.Image
       private habitat!: Phaser.GameObjects.Image
@@ -68,7 +74,7 @@ export function createEarthView(
 
       preload() {
         const assets = { planet: planetUrl, haze: hazeUrl, farmland: farmlandUrl, habitat: habitatUrl,
-          water: waterUrl, waste: wasteUrl, sun: sunUrl, wind: windUrl, factory: factoryUrl, flower: flowerUrl }
+          water: waterUrl, waste: wasteUrl, sun: sunUrl, wind: windUrl, factory: factoryUrl, flower: flowerUrl, car: carUrl }
         this.load.on('loaderror', (file: Phaser.Loader.File) => {
           reject(new Error(`Could not load planet artwork: ${file.key}. Please retry.`))
           destroy()
@@ -92,16 +98,26 @@ export function createEarthView(
           earth.add(item)
           return item
         }
-        image('planet', 0, 0, 400)
-        this.farmland = image('farmland', -63, -72, 105)
-        this.habitat = image('habitat', 61, 24, 105)
-        this.water = image('water', -49, 83, 64)
-        this.haze = image('haze', 0, 0, 421)
-        this.sun = image('sun', 208, -78, 64)
-        this.wind = image('wind', 197, 37, 65)
-        this.factory = image('factory', -201, -49, 63)
-        for (let i = 0; i < 4; i++) this.waste.push(image('waste', -162 + i * 24, 142 + (i % 2) * 10, 35))
-        for (let i = 0; i < 3; i++) this.flowers.push(image('flower', 38 + i * 29, 28 + (i % 2) * 25, 35))
+        const object = (id: string, key: string, x: number, y: number, size: number, alpha = 1) => {
+          const item = image(key, x, y, size).setAlpha(alpha)
+          this.objects.set(id, item)
+          this.objectHomes.set(id, {
+            x: item.x, y: item.y, alpha: item.alpha, scaleX: item.scaleX,
+            scaleY: item.scaleY, angle: item.angle,
+          })
+          return item
+        }
+        object('planet', 'planet', 0, 0, 400)
+        this.farmland = object('farmland', 'farmland', -63, -72, 105)
+        this.habitat = object('habitat', 'habitat', 61, 24, 105)
+        this.water = object('water', 'water', -49, 83, 64)
+        this.haze = object('haze', 'haze', 0, 0, 421)
+        this.sun = object('sun', 'sun', 208, -78, 64)
+        this.wind = object('wind', 'wind', 197, 37, 65)
+        this.factory = object('factory', 'factory', -201, -49, 63)
+        object('car', 'car', -180, 75, 55, 0)
+        for (let i = 0; i < 4; i++) this.waste.push(object(`waste-${i}`, 'waste', -162 + i * 24, 142 + (i % 2) * 10, 35))
+        for (let i = 0; i < 3; i++) this.flowers.push(object(`flower-${i}`, 'flower', 38 + i * 29, 28 + (i % 2) * 25, 35))
         this.add.text(1000, 940, 'OUR SHARED HOME', {
           fontFamily: 'Arial, sans-serif',
           fontSize: '11px',
@@ -120,9 +136,9 @@ export function createEarthView(
         ready = true
         clearTimeout(startupTimeout)
         resolve({
-          focusEarth: () => this.moveCamera(true),
           returnToSurvey: () => this.moveCamera(false),
-          animateTo: state => this.animate(state),
+          showStep: (state, scene) => this.showStep(state, scene),
+          resetToBaseline: () => this.resetToBaseline(),
           pause: duration => this.wait(duration),
           destroy,
         })
@@ -130,13 +146,15 @@ export function createEarthView(
 
       private cameraTarget() {
         const width = parent.clientWidth, height = parent.clientHeight
-        const zoom = this.focused
-          ? Math.min(width / 480, (height - 260) / 430, height * 0.38 / 240, 1.5)
+        const zoom = this.focused && this.focus
+          ? Math.min(this.focus.zoom, width / 420, height / 360, 1.5)
           : Math.min(width < 760 ? width / 560 : width / 900, height / 680, 1.25)
         const screenX = this.focused || width < 760 ? width * 0.5 : width * 0.76
         const screenY = this.focused ? height * 0.35 : height * (width < 760 ? 0.78 : 0.48)
-        return { zoom, scrollX: 1000 - width / 2 - (screenX - width / 2) / zoom,
-          scrollY: 700 - height / 2 - (screenY - height / 2) / zoom }
+        const focusX = 1000 + (this.focused ? this.focus?.x ?? 0 : 0)
+        const focusY = 700 + (this.focused ? this.focus?.y ?? 0 : 0)
+        return { zoom, scrollX: focusX - width / 2 - (screenX - width / 2) / zoom,
+          scrollY: focusY - height / 2 - (screenY - height / 2) / zoom }
       }
 
       private layout() {
@@ -171,15 +189,60 @@ export function createEarthView(
 
       private async moveCamera(focused: boolean) {
         this.focused = focused
+        if (!focused) this.focus = null
         await this.tween({ targets: this.cameras.main, ...this.cameraTarget(),
           duration: 850, ease: 'Sine.easeInOut' })
         this.layout()
       }
 
-      private async animate(state: EarthState) {
-        await this.tween({ targets: this.state, ...state, duration: 1300,
-          ease: 'Sine.easeInOut', onUpdate: () => this.drawState() })
+      private async moveCameraTo(focus: CameraTarget, duration: number) {
+        this.focused = true
+        this.focus = focus
+        await this.tween({ targets: this.cameras.main, ...this.cameraTarget(),
+          duration, ease: 'Sine.easeInOut' })
+        this.layout()
+      }
+
+      private animateObject(animation: ObjectAnimation, duration: number) {
+        const item = this.objects.get(animation.object)
+        if (!item) throw new Error(`Unknown Earth object "${animation.object}" in answer scene.`)
+        const { scale, ...pose } = animation.to
+        const home = this.objectHomes.get(animation.object)!
+        return this.tween({
+          targets: item,
+          ...pose,
+          ...(scale === undefined ? {} : { scaleX: home.scaleX * scale, scaleY: home.scaleY * scale }),
+          duration: animation.duration ?? duration,
+          ease: 'Sine.easeInOut',
+        })
+      }
+
+      private async showStep(state: EarthState, scene: AnswerScene) {
+        const animations = scene.objects ?? []
+        for (const animation of animations) {
+          if (!this.objects.has(animation.object)) {
+            throw new Error(`Unknown Earth object "${animation.object}" in answer scene.`)
+          }
+        }
+        const duration = scene.duration ?? 1300
+        await Promise.all([
+          this.moveCameraTo(scene.camera, duration),
+          this.tween({ targets: this.state, ...state, duration,
+            ease: 'Sine.easeInOut', onUpdate: () => this.drawState() }),
+          ...animations.map(animation => this.animateObject(animation, duration)),
+        ])
         this.drawState()
+      }
+
+      private async resetToBaseline() {
+        this.state = { ...baseline }
+        for (const [id, item] of this.objects) {
+          const home = this.objectHomes.get(id)!
+          item.setPosition(home.x, home.y).setAlpha(home.alpha)
+            .setScale(home.scaleX, home.scaleY).setAngle(home.angle)
+        }
+        this.drawState()
+        await this.moveCameraTo({ x: 0, y: 0, zoom: 1.2 }, 850)
       }
 
       private wait(duration: number): Promise<void> {

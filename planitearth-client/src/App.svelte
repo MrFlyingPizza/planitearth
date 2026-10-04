@@ -85,13 +85,13 @@
     experience.phase = 'finale'
     experience.captionTitle = 'One planet. Many connected choices.'
     experience.caption = 'First, the reference planet. Then, a replay of your six contributions.'
-    await earth.animateTo({ ...baseline })
+    await earth.resetToBaseline()
     await earth.pause(1200)
     for (const record of survey.history) {
       if (run !== revision || disposed) return
       experience.captionTitle = record.category
       experience.caption = record.explanation
-      await earth.animateTo(record.after)
+      await earth.showStep(record.after, record.scene)
       await earth.pause(1300)
     }
     if (run !== revision || disposed) return
@@ -118,10 +118,9 @@
       experience.caption = record.explanation
       await tick()
       elements.stage?.scrollIntoView({ block: 'start', behavior: 'instant' })
-      await earth.focusEarth()
+      await earth.showStep(record.after, record.scene)
       if (run !== revision || disposed) return
       experience.phase = 'effect'
-      await earth.animateTo(record.after)
       await earth.pause(1800)
       if (run !== revision || disposed) return
       if (survey.index === survey.data.questions.length - 1) {
@@ -191,7 +190,7 @@
             <legend class="sr-only">{question.title}</legend>
             {#if question.type === 'single'}
               <div class="options">
-                {#each question.options as option}
+                {#each question.options as option (option.id)}
                   <label class="option" class:selected={survey.response.single === option.id}>
                     <input type="radio" name={question.id} value={option.id} bind:group={survey.response.single} />
                     <span>{option.label}</span>
@@ -200,7 +199,7 @@
               </div>
             {:else if question.type === 'multi'}
               <div class="options">
-                {#each question.options as option}
+                {#each question.options as option (option.id)}
                   <label class="option" class:selected={survey.response.multiple.includes(option.id)}>
                     <input type="checkbox" name={question.id} value={option.id} bind:group={survey.response.multiple} />
                     <span>{option.label}</span>
@@ -232,7 +231,7 @@
         <p>Here’s how your answers shaped this illustration. These are qualitative visual signals, not measured environmental impacts.</p>
         <p>Bars show the amount of each property, not a good/bad score. Unassessed values retain the reference illustration.</p>
         <div class="result-metrics">
-          {#each metrics as metric}
+          {#each metrics as metric (metric)}
             {@const assessed = survey.history.some(record => record.effects[metric] !== undefined)}
             <div class="result-metric">
               <div><span>{metricLabels[metric]}</span><span>{assessed ? 'Illustrative' : 'Unassessed'}</span></div>
@@ -243,7 +242,7 @@
         <details>
           <summary>Your answers & what they mean</summary>
           <ol class="answer-summary">
-            {#each survey.history as record}
+            {#each survey.history as record (record.questionId)}
               <li><h2>{record.category}</h2><strong>{record.label}</strong><p>{record.explanation}</p></li>
             {/each}
           </ol>
