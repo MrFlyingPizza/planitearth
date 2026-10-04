@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { fade } from "svelte/transition";
   import airplaneUrl from "assets/airplane.svg";
   import earthUrl from "assets/earth.svg";
+  import eyesUrl from "assets/eyes.svg";
   import ferryUrl from "assets/ferry.svg";
   import plasticBottleUrl from "assets/plastic-bottle.svg";
   import pastureUrl from "assets/pasture.svg";
@@ -100,6 +102,56 @@
     cowX: x + 19 + (Math.random() - 0.5) * 12,
     cowY: y + 6 + (Math.random() - 0.5) * 10,
   }));
+
+  const eyeBase = { x: 250, y: 200, width: 320, height: 212 };
+  let targetEyeOffset = $state({ x: 0, y: 0 });
+  let eyeOffset = $state({ x: 0, y: 0 });
+
+  function clamp(value: number, min: number, max: number) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function updateEyeOffsetFromPointer(clientX: number, clientY: number) {
+    const svg = document.querySelector(".earth-artwork") as SVGSVGElement | null;
+    if (!svg) return;
+
+    const bounds = svg.getBoundingClientRect();
+    const px = ((clientX - bounds.left) / bounds.width) * 804;
+    const py = ((clientY - bounds.top) / bounds.height) * 806;
+
+    const dx = clamp((px - 402) * 0.45, -95, 95);
+    const dy = clamp((py - 403) * 0.35, -55, 55);
+
+    targetEyeOffset = { x: dx, y: dy };
+  }
+
+  function handlePointerMove(event: PointerEvent) {
+    updateEyeOffsetFromPointer(event.clientX, event.clientY);
+  }
+
+  onMount(() => {
+    let frameId: number | undefined;
+
+    const animate = () => {
+      eyeOffset = {
+        x: eyeOffset.x + (targetEyeOffset.x - eyeOffset.x) * 0.12,
+        y: eyeOffset.y + (targetEyeOffset.y - eyeOffset.y) * 0.12,
+      };
+      frameId = requestAnimationFrame(animate);
+    };
+
+    const handleWindowPointerMove = (event: PointerEvent) => {
+      updateEyeOffsetFromPointer(event.clientX, event.clientY);
+    };
+
+    frameId = requestAnimationFrame(animate);
+    window.addEventListener("pointermove", handleWindowPointerMove);
+
+    return () => {
+      if (frameId !== undefined) cancelAnimationFrame(frameId);
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+    };
+  });
 </script>
 
 <svg
@@ -109,6 +161,9 @@
   viewBox="0 0 804 806"
   aria-hidden="true"
   style:transform
+  onpointermove={handlePointerMove}
+  onpointerleave={() => eyeOffset = { x: 0, y: 0 }}
+  onpointerenter={(event) => handlePointerMove(event)}
 >
   {#if showFlightPath}
     <path
@@ -125,6 +180,14 @@
     />
   {/if}
   <image href={earthUrl} x="0" y="0" width="804" height="806" />
+  <image
+    href={eyesUrl}
+    x={eyeBase.x + eyeOffset.x}
+    y={eyeBase.y + eyeOffset.y}
+    width={eyeBase.width}
+    height={eyeBase.height}
+    opacity="0.95"
+  />
   {#if showFlightPath}
     <path
       id="flight-path-front"
@@ -178,12 +241,6 @@
       transition:fade={{ duration: 700 }}
     />
   {/each}
-  <g transform="translate(306 358) scale(1.2)" fill="#ffffff" stroke="#ffffff" stroke-width="10">
-    <ellipse cx="30" cy="50" rx="20" ry="30" stroke="none" />
-    <ellipse cx="130" cy="50" rx="20" ry="30" stroke="none" />
-    <path d="M0 20 C20 0 40 0 60 20" fill="none" />
-    <path d="M100 20 C120 0 140 0 160 20" fill="none" />
-  </g>
   {#each ferryExhaustParticles.slice(0, ferryExhaustLevel * 4) as particle, index (index)}
     <circle
       class="exhaust-particle"
