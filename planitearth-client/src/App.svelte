@@ -410,6 +410,58 @@
     min-height: 100svh;
     overflow: hidden;
     isolation: isolate;
+    background:
+      radial-gradient(circle at 18% 18%, rgb(91 145 255 / 0.26), transparent 20%),
+      radial-gradient(circle at 76% 22%, rgb(74 255 143 / 0.14), transparent 23%),
+      linear-gradient(180deg, #0f1531 0%, #0a1022 45%, #060b14 100%);
+  }
+
+  main::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(2px 2px at 8% 12%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 16% 22%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 25% 12%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 35% 18%, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 48% 10%, rgba(255, 255, 255, 0.92) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 58% 18%, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 70% 12%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 82% 20%, rgba(255, 255, 255, 0.78) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 92% 12%, rgba(255, 255, 255, 0.84) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 12% 38%, rgba(255, 255, 255, 0.76) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 22% 48%, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 32% 66%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 46% 58%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 62% 52%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 74% 62%, rgba(255, 255, 255, 0.86) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 86% 54%, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 96% 68%, rgba(255, 255, 255, 0.76) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 8% 84%, rgba(255, 255, 255, 0.82) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 26% 82%, rgba(255, 255, 255, 0.74) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 42% 88%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 58% 82%, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 74% 90%, rgba(255, 255, 255, 0.76) 0%, rgba(255, 255, 255, 0) 100%),
+      radial-gradient(2px 2px at 90% 80%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 100%);
+    opacity: 1;
+    pointer-events: none;
+    animation: star-twinkle 8s ease-in-out infinite alternate;
+  }
+
+  @keyframes star-twinkle {
+    0% {
+      opacity: 0.55;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.04);
+    }
+    100% {
+      opacity: 0.75;
+      transform: scale(1.02);
+    }
   }
 
   .attribution-control {
