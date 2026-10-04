@@ -1,47 +1,89 @@
-# Svelte + TS + Vite
+# Planit Earth
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+A six-question Svelte 5 survey with a persistent Phaser 4 planet built from local
+SVG textures. Answer a question, watch the camera focus on the planet and the
+effect animate, then return to the next question. The finale replays recorded
+state snapshots and opens an answer summary.
 
-## Recommended IDE Setup
+## Development
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+Use Node.js 24 and pnpm with the existing lockfile.
 
-## Need an official Svelte framework?
+```sh
+pnpm install
+pnpm dev
+pnpm check
+pnpm test
+pnpm build
+```
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+## Architecture
 
-## Technical considerations
+- [App.svelte](src/App.svelte): survey controls, progression, feedback, and results.
+- [survey.ts](src/lib/survey.ts): response validation, input validation, normalized
+  Earth state, and immutable before/after records.
+- [mock-api.ts](src/lib/mock-api.ts): an explicit mock API adapter returning six
+  questions after a cancellable 450 ms delay. No backend or external assets are
+  needed, and no answers are transmitted.
+- [Planet.svelte](src/lib/Planet.svelte): Phaser mounting and teardown.
+- [earth-view.ts](src/lib/earth-view.ts): SVG loading, camera compositions,
+  completion-driven animation promises, and lifecycle cancellation.
+- [earth assets](src/assets/earth): individually animated SVG layers. Phaser
+  rasterizes them at load time; these are not live DOM SVG paths.
 
-**Why use this over SvelteKit?**
+Questions support single selection, multi-selection (including no selections),
+and stepped sliders with optional not-applicable answers. Tentative input has
+no effect until submission. The planet is decorative: textual explanations and
+the final summary communicate its meaning without relying on the canvas.
 
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
+## Effect contract
 
-This template contains as little as possible to get started with Vite + TypeScript + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
+The response is `{ id, questions }`. Each question has an ID, title, description,
+category, and discriminated `type`:
 
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
+- `single`: options with IDs, labels, explanations, and `effects`.
+- `multi`: the same options, plus `baseEffects`; selected option effects are
+  additive deltas against those reference values, then clamped to 0–1.
+- `slider`: `min`, `max`, `step`, `unit`, `metric`, `from`, `to`, `explanation`,
+  and `allowSkip`. The endpoints interpolate linearly between `from` and `to`.
 
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
+Supported metrics are `transport`, `agriculture`, `energy`, `waste`, `water`,
+and `habitat`. Single-select and slider effects set a metric to a normalized
+0–1 value; each of the six questions owns a different metric. An empty effect
+object means unassessed, not zero impact. If future questions share a metric,
+the latest assessed value replaces the earlier value: redesign the aggregation
+contract before using them for additive impacts.
 
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
+The initial planet is an arbitrary reference illustration, not a measured
+world average. Haze combines transport, agriculture, and energy values.
+Other layers show agricultural footprint, energy mix, new waste, water demand,
+and habitat diversity. Larger bars mean more of the named property, not a
+universal good/bad score. All magnitudes are authored visual signals, not
+scientific measurements or personal footprint calculations.
 
-**Why include `.vscode/extensions.json`?**
+## Replacing the mock with REST
 
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
-
-**Why enable `allowJs` in the TS template?**
-
-While `allowJs: false` would indeed prevent the use of `.js` files in the project, it does not prevent the use of JavaScript syntax in `.svelte` files. In addition, it would force `checkJs: false`, bringing the worst of both worlds: not being able to guarantee the entire codebase is TypeScript, and also having worse typechecking for the existing JavaScript. In addition, there are valid use cases in which a mixed codebase may be relevant.
-
-**Why is HMR not preserving my local component state?**
-
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/rixo/svelte-hmr#svelte-hmr).
-
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
+Replace the delay and local JSON round-trip in `fetchSurvey` with a request:
 
 ```ts
-// store.ts
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+const response = await fetch(`${import.meta.env.VITE_API_URL}/survey`, { signal })
+if (!response.ok) throw new Error(`Survey request failed (${response.status}).`)
+return parseSurvey(await response.json())
 ```
+
+Configure `VITE_API_URL` for the backend and allow the client origin through
+server CORS. Keep response validation and visible errors; do not fall back to
+mock data after a failed real request. Answer persistence is not implemented.
+
+## Accessibility and verification
+
+Controls use native HTML inputs, fieldsets, keyboard focus, and validation
+feedback. OS reduced-motion preferences are respected; the header also offers
+short animations. Requests and pending animations cancel on teardown. Restart
+creates a fresh scene and resets the answer history.
+
+`pnpm test` uses Node's built-in test runner and TypeScript stripping to cover
+the mock contract, all answer types, endpoint values, accumulation, unassessed
+answers, duplicate submission, malformed responses, and request cancellation.
+Browser checks should also cover the six-question flow, responsive resizing,
+finale, restart, and reduced motion.
