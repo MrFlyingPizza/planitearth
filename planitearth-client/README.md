@@ -20,6 +20,9 @@ pnpm build
 ## Architecture
 
 - [App.svelte](src/App.svelte): survey controls, progression, feedback, and results.
+  Related reactive data is grouped into `$state` objects for survey data/input,
+  experience phase/feedback, motion preferences, and DOM element references;
+  `$derived` runes expose the current question, final planet state, and motion mode.
 - [survey.ts](src/lib/survey.ts): response validation, input validation, normalized
   Earth state, and immutable before/after records.
 - [mock-api.ts](src/lib/mock-api.ts): an explicit mock API adapter returning six
