@@ -1,261 +1,381 @@
 <script lang="ts">
-  import { onMount, tick } from 'svelte'
-  import type { TransitionConfig } from 'svelte/transition'
-  import Planet from './lib/Planet.svelte'
-  import { baseline, metricLabels, metrics, recordAnswer, validateAnswer,
-    type Answer, type AnswerRecord, type Question, type Survey } from './lib/survey'
-  import { surveySequence } from './lib/survey-data'
-  import type { EarthView } from './lib/earth-view'
+  import './app.css';
+  import { onMount } from "svelte";
+  import EarthArtwork from "./lib/EarthArtwork.svelte";
+  import FerryQuestionContent from "./lib/contents/FerryQuestionContent.svelte";
+  import FlightQuestionContent from "./lib/contents/FlightQuestionContent.svelte";
+  import LandingContent from "./lib/contents/LandingContent.svelte";
+  import PlasticQuestionContent from "./lib/contents/PlasticQuestionContent.svelte";
+  import ReadyImpactContent from "./lib/contents/ReadyImpactContent.svelte";
+  import RedMeatQuestionContent from "./lib/contents/RedMeatQuestionContent.svelte";
+  import { createQuestionResponses } from "./lib/state/questions-and-answers.svelte";
 
-  type Phase = 'loading' | 'question' | 'focus' | 'effect' | 'return' | 'finale' | 'complete' | 'error'
-  function slideLeft(_node: Element, { duration = 650 }: { duration?: number } = {}): TransitionConfig {
-    return {
-      duration,
-      css: progress => `transform: translateX(${(1 - progress) * -100}vw)`,
+  type Step =
+    | "landing"
+    | "flights"
+    | "earth-intermission"
+    | "ferry"
+    | "plastic-earth-intermission"
+    | "plastics"
+    | "meat-earth-intermission"
+    | "red-meat"
+    | "final-earth-intermission"
+    | "ready-impact"
+    | "impact-reveal";
+  type Viewport = { width: number; height: number };
+  type EarthLayout = {
+    size: (viewport: Viewport) => number;
+    position: (viewport: Viewport, size: number) => { left: number; top: number };
+    showFlightPath: boolean;
+  };
+
+  let viewport = $state({ width: 0, height: 0 });
+  let currentStep = $state<Step>("landing");
+  let impactRevealStarted = $state(false);
+  let earthShaking = $state(false);
+  let screenWhitening = $state(false);
+  let responsesPrinted = false;
+  const responses = createQuestionResponses();
+  let intermissionTimeout: ReturnType<typeof setTimeout> | undefined;
+  let impactRevealTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  const flightOptions = ["0", "1-2", "2-4", "5-7", "8-10", "11+"];
+  const ferryOptions = ["0", "1-7", "8-15", "16-23", "24-30", "31+"];
+  const plasticOptions = [
+    { label: "I do my best to avoid single-use plastics", bottleCount: 1 },
+    { label: "I try to avoid it, but could be better", bottleCount: 5 },
+    { label: "It doesn't matter to me", bottleCount: 20 },
+  ];
+  const redMeatOptions = [
+    { label: "0", count: 0 },
+    { label: "1-2", count: 2 },
+    { label: "2-4", count: 3 },
+    { label: "5-7", count: 6 },
+    { label: "8-10", count: 9 },
+    { label: "11+", count: 11 },
+  ];
+
+  let flightExhaustLevel = $derived(
+    flightOptions.indexOf(responses.get("flights")?.answer ?? "0"),
+  );
+  let ferryExhaustLevel = $derived(
+    ferryOptions.indexOf(responses.get("ferry")?.answer ?? "0"),
+  );
+  let plasticBottleCount = $derived(
+    plasticOptions.find(({ label }) => label === responses.get("plastics")?.answer)?.bottleCount ?? 1,
+  );
+  let redMeatCount = $derived(
+    redMeatOptions.find(({ label }) => label === responses.get("redMeat")?.answer)?.count ?? 0,
+  );
+
+  const earthTransitionDuration = 2000;
+  const earthIntermissionDuration = 1000;
+
+  const flightEarthLayout: EarthLayout = {
+    size: ({ height }) => height / 0.2,
+    position: ({ width, height }, size) => ({
+      left: width / 2 - size / 2,
+      top: height * 0.56,
+    }),
+    showFlightPath: true,
+  };
+
+  const centeredEarthLayout: EarthLayout = {
+    size: ({ width, height }) => Math.min(width * 0.7, height * 0.85, 640),
+    position: ({ width, height }, size) => ({
+      left: width / 2 - size / 2,
+      top: height / 2 - size / 2,
+    }),
+    showFlightPath: false,
+  };
+
+  const readyImpactEarthLayout: EarthLayout = {
+    size: ({ width, height }) => Math.min(width * 0.42, height * 0.42, 340),
+    position: ({ width, height }, size) => ({
+      left: width / 2 - size / 2,
+      top: height * 0.05,
+    }),
+    showFlightPath: false,
+  };
+
+  const stepStates: Record<Step, EarthLayout> = {
+    landing: {
+      size: ({ width, height }) =>
+        Math.min(width < 900 ? width * 0.9 : width * 0.45, height * 0.9, 640),
+      position: ({ width, height }, size) => ({
+        left: (width < 900 ? width / 2 : width * 0.25) - size / 2,
+        top: height / 2 - size / 2,
+      }),
+      showFlightPath: false,
+    },
+    flights: flightEarthLayout,
+    "earth-intermission": { ...centeredEarthLayout, showFlightPath: true },
+    "plastic-earth-intermission": centeredEarthLayout,
+    "meat-earth-intermission": centeredEarthLayout,
+    "final-earth-intermission": centeredEarthLayout,
+    "ready-impact": readyImpactEarthLayout,
+    "impact-reveal": centeredEarthLayout,
+    ferry: {
+      size: ({ height }) => height * 2,
+      position: ({ height }, size) => ({
+        left: -size * 0.42,
+        top: height - size * 0.45,
+      }),
+      showFlightPath: false,
+    },
+    plastics: {
+      size: ({ width, height }) =>
+        width < 900
+          ? Math.min(width * 0.48, height * 0.72, 440)
+          : Math.min(width * 0.62, height * 0.9, 720),
+      position: ({ width, height }, size) => ({
+        left: width - size,
+        top: height / 2 - size / 2,
+      }),
+      showFlightPath: false,
+    },
+    "red-meat": {
+      size: ({ width, height }) => Math.min(width, height * 1.8),
+      position: ({ height }, size) => ({
+        left: -size * 0.25,
+        top: height - size * 0.5,
+      }),
+      showFlightPath: false,
+    },
+  };
+
+  function begin() {
+    currentStep = "flights";
+  }
+
+  function next(answer: string) {
+    responses.set("flights", answer);
+    startIntermission("ferry");
+  }
+
+  function saveFlightExhaustLevel(level: number) {
+    responses.set("flights", flightOptions[level]);
+  }
+
+  function startIntermission(
+    nextStep: "ferry" | "plastics" | "red-meat" | "ready-impact",
+  ) {
+    const intermissionStep: Record<typeof nextStep, Step> = {
+      ferry: "earth-intermission",
+      plastics: "plastic-earth-intermission",
+      "red-meat": "meat-earth-intermission",
+      "ready-impact": "final-earth-intermission",
+    };
+    currentStep = intermissionStep[nextStep];
+    clearTimeout(intermissionTimeout);
+    intermissionTimeout = setTimeout(
+      () => currentStep = nextStep,
+      earthTransitionDuration + earthIntermissionDuration,
+    );
+  }
+
+  function saveFerryAnswer(answer: string) {
+    responses.set("ferry", answer);
+    startIntermission("plastics");
+  }
+
+  function saveFerryExhaustLevel(level: number) {
+    responses.set("ferry", ferryOptions[level]);
+  }
+
+  function savePlasticAnswer(bottleCount: number) {
+    const answer = plasticOptions.find((option) => option.bottleCount === bottleCount);
+    if (!answer) throw new Error(`Unknown plastic bottle count: ${bottleCount}`);
+    responses.set("plastics", answer.label);
+  }
+
+  function nextFromPlastics(bottleCount: number) {
+    savePlasticAnswer(bottleCount);
+    startIntermission("red-meat");
+  }
+
+  function saveRedMeatAnswer(count: number) {
+    const answer = redMeatOptions.find((option) => option.count === count);
+    if (!answer) throw new Error(`Unknown red meat count: ${count}`);
+    responses.set("redMeat", answer.label);
+  }
+
+  function finishSurvey(count: number) {
+    saveRedMeatAnswer(count);
+    startIntermission("ready-impact");
+  }
+
+  function beginImpactReveal() {
+    impactRevealStarted = true;
+    currentStep = "impact-reveal";
+    clearTimeout(impactRevealTimeout);
+    impactRevealTimeout = setTimeout(() => {
+      earthShaking = true;
+      screenWhitening = true;
+    }, earthTransitionDuration);
+  }
+
+  function printResponsesAfterWhiteout(event: TransitionEvent) {
+    if (
+      event.target !== event.currentTarget ||
+      event.propertyName !== "opacity" ||
+      !screenWhitening ||
+      responsesPrinted
+    ) {
+      return;
     }
+
   }
 
-  let survey = $state<{
-    data: Survey | null
-    history: AnswerRecord[]
-    index: number
-    response: { single: string; multiple: string[]; slider: number; skipped: boolean }
-    validation: string
-  }>({
-    data: null,
-    history: [],
-    index: 0,
-    response: { single: '', multiple: [], slider: 0, skipped: false },
-    validation: '',
-  })
-  let experience = $state<{
-    phase: Phase
-    errorMessage: string
-    captionTitle: string
-    caption: string
-  }>({ phase: 'loading', errorMessage: '', captionTitle: '', caption: '' })
-  let elements = $state<{ heading?: HTMLHeadingElement; stage?: HTMLElement }>({})
-  let revision = $state(0)
-  let question = $derived(survey.data?.questions[survey.index])
-  let finalState = $derived(survey.history.at(-1)?.after ?? baseline)
-  let view: EarthView | null = null
-  let disposed = false
+  let earthTransform = $derived.by(() => {
+    const { width, height } = viewport;
+    if (!width || !height) return "translate3d(-1000px, -1000px, 0) scale(0)";
 
-  function fail(error: unknown) {
-    if (disposed) return
-    console.error('Survey experience failed:', error)
-    experience.errorMessage = error instanceof Error ? error.message : 'An unexpected error interrupted the survey.'
-    experience.phase = 'error'
-  }
+    const layout = stepStates[currentStep];
+    const earthSize = layout.size(viewport);
+    const scale = earthSize / 804;
+    const { left, top } = layout.position(viewport, earthSize);
 
-  function prepareQuestion(q: Question) {
-    survey.response = { single: '', multiple: [], slider: q.type === 'slider' ? q.min : 0, skipped: false }
-    survey.validation = ''
-  }
+    return `translate3d(${left}px, ${top}px, 0) scale(${scale})`;
+  });
 
-  async function focusHeading() {
-    await tick()
-    if (!disposed) elements.heading?.focus()
-  }
-
-  function beginWhenReady() {
-    if (experience.phase !== 'loading' || !survey.data || !view) return
-    prepareQuestion(survey.data.questions[0]!)
-    experience.phase = 'question'
-    void focusHeading()
+  function measureViewport() {
+    viewport = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
   }
 
   onMount(() => {
-    survey.data = surveySequence
-    beginWhenReady()
-    return () => {
-      disposed = true
-      revision += 1
-      view?.destroy()
-    }
-  })
+    measureViewport();
+    window.addEventListener("resize", measureViewport);
 
-  function currentAnswer(q: Question): Answer {
-    if (q.type === 'single') return survey.response.single
-    if (q.type === 'multi') return survey.response.multiple
-    return survey.response.skipped ? null : Number(survey.response.slider)
-  }
+    return () => window.removeEventListener("resize", measureViewport);
+  });
 
-  async function finale(earth: EarthView, run: number) {
-    experience.phase = 'finale'
-    experience.captionTitle = 'One planet. Many connected choices.'
-    experience.caption = 'First, the reference planet. Then, a replay of your six contributions.'
-    await earth.resetToBaseline()
-    await earth.pause(1200)
-    for (const record of survey.history) {
-      if (run !== revision || disposed) return
-      experience.captionTitle = record.category
-      experience.caption = record.explanation
-      await earth.showStep(record.after, record.scene)
-      await earth.pause(1300)
-    }
-    if (run !== revision || disposed) return
-    experience.phase = 'complete'
-    await tick()
-    await earth.returnToSurvey()
-    if (run !== revision || disposed) return
-    await focusHeading()
-  }
-
-  async function submit(event: SubmitEvent) {
-    event.preventDefault()
-    if (experience.phase !== 'question' || !question || !view || !survey.data) return
-    const answer = currentAnswer(question)
-    survey.validation = validateAnswer(question, answer) ?? ''
-    if (survey.validation) return
-    const earth = view
-    const run = revision
-    experience.phase = 'focus'
-    try {
-      const record = recordAnswer(question, answer, survey.history)
-      survey.history = [...survey.history, record]
-      experience.captionTitle = record.category
-      experience.caption = record.explanation
-      await tick()
-      elements.stage?.scrollIntoView({ block: 'start', behavior: 'instant' })
-      await earth.showStep(record.after, record.scene)
-      if (run !== revision || disposed) return
-      experience.phase = 'effect'
-      await earth.pause(1800)
-      if (run !== revision || disposed) return
-      if (survey.index === survey.data.questions.length - 1) {
-        await finale(earth, run)
-      } else {
-        experience.phase = 'return'
-        survey.index += 1
-        prepareQuestion(survey.data.questions[survey.index]!)
-        await earth.returnToSurvey()
-        if (run !== revision || disposed) return
-        experience.phase = 'question'
-        await focusHeading()
-      }
-    } catch (error) {
-      if (run === revision && !disposed) fail(error)
-    }
-  }
-
-  function restart() {
-    revision += 1
-    view = null
-    survey.history = []
-    survey.index = 0
-    survey.validation = ''
-    experience.caption = ''
-    experience.errorMessage = ''
-    experience.phase = 'loading'
-  }
+  onMount(() => () => clearTimeout(intermissionTimeout));
+  onMount(() => () => clearTimeout(impactRevealTimeout));
 </script>
 
-<svelte:head>
-  <title>Planit Earth — Small choices, shared planet</title>
-  <meta name="description" content="Explore how everyday choices connect to our planet in an interactive, illustrative survey." />
-</svelte:head>
-
-<main id="content">
-  <section bind:this={elements.stage} class:results-stage={experience.phase === 'complete'}
-    class:animating-stage={experience.phase === 'focus' || experience.phase === 'effect' || experience.phase === 'return' || experience.phase === 'finale'}
-    class="experience" aria-label="Interactive Earth survey">
-    {#key revision}
-      <Planet onready={(earth) => { view = earth; beginWhenReady() }} onerror={fail} />
-    {/key}
-
-    {#if experience.phase === 'loading'}
-      <div class="center-panel" role="status">
-        <div class="loading-orbit" aria-hidden="true"></div>
-        <p class="eyebrow">A LITTLE PERSPECTIVE</p>
-        <h1>Preparing your planet</h1>
-        <p>Loading your survey and planet artwork…</p>
-      </div>
-    {:else if experience.phase === 'error'}
-      <div class="center-panel">
-        <p class="eyebrow">LET’S TRY THAT AGAIN</p>
-        <h1>We hit a little turbulence.</h1>
-        <p role="alert">{experience.errorMessage}</p>
-        <button class="primary" onclick={restart}>Start again <span aria-hidden="true">↗</span></button>
-      </div>
-    {:else if (experience.phase === 'question' || experience.phase === 'return') && question}
-      <div class="question-panel" transition:slideLeft inert={experience.phase !== 'question'}>
-        <div class="progress-meta"><span>YOUR EVERYDAY FOOTPRINT</span><span>{survey.index + 1} / {survey.data?.questions.length}</span></div>
-        <progress value={survey.index} max={survey.data?.questions.length ?? 6} aria-label="Questions completed"></progress>
-        <p class="eyebrow">{question.category}</p>
-        <h1 bind:this={elements.heading} tabindex="-1">{question.title}</h1>
-        <p class="question-description" id="question-description">{question.description}</p>
-        <form onsubmit={submit}>
-          <fieldset aria-describedby="question-description">
-            <legend class="sr-only">{question.title}</legend>
-            {#if question.type === 'single'}
-              <div class="options">
-                {#each question.options as option (option.id)}
-                  <label class="option" class:selected={survey.response.single === option.id}>
-                    <input type="radio" name={question.id} value={option.id} bind:group={survey.response.single} />
-                    <span>{option.label}</span>
-                  </label>
-                {/each}
-              </div>
-            {:else if question.type === 'multi'}
-              <div class="options">
-                {#each question.options as option (option.id)}
-                  <label class="option" class:selected={survey.response.multiple.includes(option.id)}>
-                    <input type="checkbox" name={question.id} value={option.id} bind:group={survey.response.multiple} />
-                    <span>{option.label}</span>
-                  </label>
-                {/each}
-              </div>
-              <p class="input-note">{survey.response.multiple.length} selected · selecting none is okay</p>
-            {:else}
-              <div class="slider-card">
-                <label for={question.id}>Your typical amount</label>
-                <div class="slider-value"><output for={question.id}>{survey.response.skipped ? '—' : survey.response.slider}</output><span>{question.unit}</span></div>
-                <input id={question.id} type="range" min={question.min} max={question.max} step={question.step} bind:value={survey.response.slider} disabled={survey.response.skipped} />
-                <div class="range-labels"><span>{question.min} {question.unit}</span><span>{question.max} {question.unit}</span></div>
-              </div>
-              {#if question.allowSkip}
-                <label class="skip-option"><input type="checkbox" bind:checked={survey.response.skipped} /> Not applicable to me</label>
-              {/if}
-            {/if}
-          </fieldset>
-          {#if survey.validation}<p class="validation" role="alert">{survey.validation}</p>{/if}
-          <button class="primary" type="submit">See the effect <span aria-hidden="true">↗</span></button>
-        </form>
-        <p class="panel-footnote">No perfect answers. Just a chance to see the connections.</p>
-      </div>
-    {:else if experience.phase === 'complete'}
-      <div class="results-panel" transition:slideLeft>
-        <p class="eyebrow">THE BIGGER PICTURE</p>
-        <h1 bind:this={elements.heading} tabindex="-1">Small choices.<br />Shared planet.</h1>
-        <p>Here’s how your answers shaped this illustration. These are qualitative visual signals, not measured environmental impacts.</p>
-        <p>Bars show the amount of each property, not a good/bad score. Unassessed values retain the reference illustration.</p>
-        <div class="result-metrics">
-          {#each metrics as metric (metric)}
-            {@const assessed = survey.history.some(record => record.effects[metric] !== undefined)}
-            <div class="result-metric">
-              <div><span>{metricLabels[metric]}</span><span>{assessed ? 'Illustrative' : 'Unassessed'}</span></div>
-              <div class="metric-track" aria-hidden="true"><span style:width={`${finalState[metric] * 100}%`}></span></div>
-            </div>
-          {/each}
-        </div>
-        <details>
-          <summary>Your answers & what they mean</summary>
-          <ol class="answer-summary">
-            {#each survey.history as record (record.questionId)}
-              <li><h2>{record.category}</h2><strong>{record.label}</strong><p>{record.explanation}</p></li>
-            {/each}
-          </ol>
-        </details>
-        <button class="primary" onclick={restart}>Explore again <span aria-hidden="true">↗</span></button>
-      </div>
-    {:else}
-      <div class="animation-caption" role="status" aria-live="polite">
-        <p class="eyebrow">{experience.phase === 'finale' ? 'YOUR PLANET · THE FULL PICTURE' : `CHOICE ${survey.index + 1} · THE CONNECTION`}</p>
-        <h2>{experience.captionTitle}</h2>
-        <p>{experience.caption}</p>
-        <span class="animation-status">{experience.phase === 'finale' ? 'Replaying your accumulated choices' : experience.phase === 'return' ? 'Moving to your next question' : 'Bringing your choice into view'}</span>
-      </div>
+<main>
+  <EarthArtwork
+    transform={earthTransform}
+    showFlightPath={stepStates[currentStep].showFlightPath || currentStep === "ferry"}
+    showFerries={currentStep === "ferry" || currentStep === "plastic-earth-intermission"}
+    fadeFlightPath={currentStep === "ferry"}
+    fadeDecorations={currentStep === "plastics"}
+    fadeBottles={currentStep === "red-meat"}
+    flightExhaustLevel={
+      currentStep === "flights" || currentStep === "earth-intermission"
+        ? flightExhaustLevel
+        : 0
+    }
+    ferryExhaustLevel={
+      currentStep === "ferry" || currentStep === "plastic-earth-intermission"
+        ? ferryExhaustLevel
+        : 0
+    }
+    plasticBottleCount={
+      currentStep === "plastics" || currentStep === "meat-earth-intermission" || currentStep === "red-meat"
+        ? plasticBottleCount
+        : 0
+    }
+    showPasture={currentStep === "red-meat" || currentStep === "final-earth-intermission"}
+    redMeatCount={
+      currentStep === "red-meat" || currentStep === "final-earth-intermission"
+        ? redMeatCount
+        : 0
+    }
+    earthShaking={earthShaking}
+  />
+  <div class="content-stage" class:impact-fading={impactRevealStarted}>
+    {#if currentStep === "landing"}
+      <LandingContent onBegin={begin} />
+    {:else if currentStep === "flights"}
+      <FlightQuestionContent onNext={next} onSelectionChange={saveFlightExhaustLevel} />
+    {:else if currentStep === "ferry"}
+      <FerryQuestionContent
+        onNext={saveFerryAnswer}
+        onSelectionChange={saveFerryExhaustLevel}
+      />
+    {:else if currentStep === "plastics"}
+      <PlasticQuestionContent
+        onNext={nextFromPlastics}
+        onSelectionChange={savePlasticAnswer}
+      />
+    {:else if currentStep === "red-meat"}
+      <RedMeatQuestionContent
+        onNext={finishSurvey}
+        onSelectionChange={saveRedMeatAnswer}
+      />
+    {:else if currentStep === "ready-impact" || currentStep === "impact-reveal"}
+      <ReadyImpactContent onYes={beginImpactReveal} />
     {/if}
-  </section>
+  </div>
+  <div
+    class:active={screenWhitening}
+    class="impact-whiteout"
+    aria-hidden="true"
+    ontransitionend={printResponsesAfterWhiteout}
+  ></div>
 </main>
+
+<style>
+  main {
+    position: relative;
+    min-height: 100vh;
+    min-height: 100svh;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .content-stage {
+    position: absolute;
+    inset: 0;
+    transition: opacity 700ms ease-out;
+  }
+
+  .content-stage.impact-fading {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .impact-whiteout {
+    position: fixed;
+    z-index: 2;
+    inset: 0;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 1400ms ease-in;
+  }
+
+  .impact-whiteout.active {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .content-stage,
+    .impact-whiteout {
+      transition-duration: 1ms;
+    }
+  }
+
+  .content-stage :global(.landing-content),
+  .content-stage :global(.question-content),
+  .content-stage :global(.ferry-question-content) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+  }
+
+  .content-stage :global(.plastic-question-content),
+  .content-stage :global(.red-meat-question-content),
+  .content-stage :global(.ready-impact-content) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+  }
+</style>

@@ -4,6 +4,14 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "es2023",
     "module": "esnext",
+    "paths": {
+      "assets/*": ["./src/assets/*"],
+      "$lib": ["./src/lib"],
+      "$lib/*": ["./src/lib/*"],
+      "$lib/components": ["./src/lib/components"],
+      "$lib/components/ui": ["./src/lib/components/ui"],
+      "$lib/utils": ["./src/lib/utils"]
+    },
     "types": ["svelte", "vite/client", "node"],
     "allowArbitraryExtensions": true,
     "allowImportingTsExtensions": true,
