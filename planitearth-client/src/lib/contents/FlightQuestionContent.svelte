@@ -3,10 +3,21 @@
   import { fly } from "svelte/transition";
   import { Button } from "$lib/components/ui/button/index.js";
 
-  let { onNext }: { onNext: (answer: string) => void } = $props();
+  let {
+    onNext,
+    onSelectionChange,
+  }: {
+    onNext: (answer: string) => void;
+    onSelectionChange: (level: number) => void;
+  } = $props();
 
   let selectedIndex = $state(0);
   const options = ["0", "1-2", "2-4", "5-7", "8-10", "11+"];
+
+  function selectIndex(index: number) {
+    selectedIndex = index;
+    onSelectionChange(index);
+  }
 </script>
 
 <section
@@ -24,8 +35,9 @@
       min="0"
       max={options.length - 1}
       step="1"
-      bind:value={selectedIndex}
+      value={selectedIndex}
       aria-valuetext={options[selectedIndex]}
+      oninput={(event) => selectIndex(Number(event.currentTarget.value))}
     />
     <div class="flight-options" aria-hidden="true">
       {#each options as option (option)}

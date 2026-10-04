@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fade } from "svelte/transition";
   import airplaneUrl from "assets/airplane.svg";
   import earthUrl from "assets/earth.svg";
   import ferryUrl from "assets/ferry.svg";
@@ -14,6 +15,8 @@
     fadeFlightPath,
     fadeDecorations,
     fadeBottles,
+    flightExhaustLevel,
+    ferryExhaustLevel,
     plasticBottleCount,
     showPasture,
     redMeatCount,
@@ -24,6 +27,8 @@
     fadeFlightPath: boolean;
     fadeDecorations: boolean;
     fadeBottles: boolean;
+    flightExhaustLevel: number;
+    ferryExhaustLevel: number;
     plasticBottleCount: number;
     showPasture: boolean;
     redMeatCount: number;
@@ -34,6 +39,24 @@
     { x: 570, y: 285 },
     { x: 630, y: 285 },
   ];
+  const flightExhaustParticles = Array.from({ length: 100 }, (_, index) => {
+    const angle = (index / 100) * Math.PI * 2;
+    return {
+      index,
+      x: 402 + Math.cos(angle) * 335,
+      y: 403 + Math.sin(angle) * 360,
+      radius: 3 + (index % 4),
+    };
+  });
+  const ferryExhaustParticles = Array.from({ length: 30 }, (_, index) => {
+    const ferry = ferries[index % ferries.length];
+    const trailIndex = Math.floor(index / ferries.length);
+    return {
+      x: ferry.x + 34 - trailIndex * 5 + (index % 2) * 3,
+      y: ferry.y + 17 - trailIndex * 3,
+      radius: 2 + (index % 3),
+    };
+  });
   const bottles = [
     { x: 70, y: 210, rotation: -16 },
     { x: 173, y: 307, rotation: 8 },
@@ -57,23 +80,23 @@
     { x: 185, y: 493, rotation: -14 },
   ];
   const livestockAnchors = [
-    { x: 220, y: 160 },
-    { x: 275, y: 150 },
-    { x: 325, y: 165 },
-    { x: 205, y: 205 },
-    { x: 260, y: 198 },
-    { x: 315, y: 210 },
-    { x: 225, y: 250 },
-    { x: 280, y: 242 },
-    { x: 335, y: 255 },
-    { x: 245, y: 292 },
-    { x: 300, y: 285 },
+    { x: 250, y: 190 },
+    { x: 300, y: 180 },
+    { x: 350, y: 195 },
+    { x: 255, y: 230 },
+    { x: 305, y: 225 },
+    { x: 355, y: 235 },
+    { x: 270, y: 270 },
+    { x: 320, y: 265 },
+    { x: 360, y: 275 },
+    { x: 285, y: 300 },
+    { x: 335, y: 295 },
   ];
   const livestockPositions = livestockAnchors.map(({ x, y }) => ({
-    wheatX: x + (Math.random() - 0.5) * 22,
-    wheatY: y + (Math.random() - 0.5) * 18,
-    cowX: x + 19 + (Math.random() - 0.5) * 16,
-    cowY: y + 6 + (Math.random() - 0.5) * 14,
+    wheatX: x + (Math.random() - 0.5) * 12,
+    wheatY: y + (Math.random() - 0.5) * 10,
+    cowX: x + 19 + (Math.random() - 0.5) * 12,
+    cowY: y + 6 + (Math.random() - 0.5) * 10,
   }));
 </script>
 
@@ -114,7 +137,14 @@
     />
   {/if}
   {#if showPasture}
-    <image href={pastureUrl} x="195" y="125" width="235" height="229" />
+    <image
+      class="pasture-decoration"
+      href={pastureUrl}
+      x="195"
+      y="125"
+      width="235"
+      height="229"
+    />
     {#each livestockPositions.slice(0, redMeatCount) as position, index (index)}
       <image
         href={wheatClusterUrl}
@@ -122,6 +152,7 @@
         y={position.wheatY}
         width="22"
         height="27"
+        transition:fade={{ duration: 500, delay: index * 80 }}
       />
       <image
         href={cowUrl}
@@ -129,15 +160,36 @@
         y={position.cowY}
         width="42"
         height="28"
+        transition:fade={{ duration: 500, delay: index * 80 + 40 }}
       />
     {/each}
   {/if}
+  {#each flightExhaustParticles.filter((particle) => particle.index % 5 < flightExhaustLevel) as particle (particle.index)}
+    <circle
+      class="exhaust-particle"
+      cx={particle.x}
+      cy={particle.y}
+      r={particle.radius}
+      opacity={0.55 + (particle.index % 4) * 0.1}
+      transition:fade={{ duration: 700 }}
+    />
+  {/each}
   <g transform="translate(306 358) scale(1.2)" fill="#ffffff" stroke="#ffffff" stroke-width="10">
     <ellipse cx="30" cy="50" rx="20" ry="30" stroke="none" />
     <ellipse cx="130" cy="50" rx="20" ry="30" stroke="none" />
     <path d="M0 20 C20 0 40 0 60 20" fill="none" />
     <path d="M100 20 C120 0 140 0 160 20" fill="none" />
   </g>
+  {#each ferryExhaustParticles.slice(0, ferryExhaustLevel * 4) as particle, index (index)}
+    <circle
+      class="exhaust-particle"
+      cx={particle.x}
+      cy={particle.y}
+      r={particle.radius}
+      opacity={0.35 + (index % 3) * 0.15}
+      transition:fade={{ duration: 700 }}
+    />
+  {/each}
   {#if showFerries}
     {#each ferries as ferry, index (index)}
       <image
@@ -162,6 +214,7 @@
       width="30"
       height="52"
       transform={`rotate(${bottle.rotation} ${bottle.x + 15} ${bottle.y + 26})`}
+      transition:fade={{ duration: 500 }}
     />
   {/each}
   {#if showFlightPath}
@@ -213,6 +266,12 @@
     animation: ferry-fade-in 700ms ease-out forwards;
   }
 
+  .exhaust-particle {
+    fill: #f4f0dc;
+    stroke: #66757d;
+    stroke-width: 1;
+  }
+
   .flight-path,
   .plane-motion,
   .ferry {
@@ -224,9 +283,12 @@
   }
 
   .plastic-bottle {
-    opacity: 0;
-    animation: ferry-fade-in 500ms ease-out forwards;
     transition: opacity 700ms ease-out;
+  }
+
+  .pasture-decoration {
+    opacity: 0;
+    animation: ferry-fade-in 700ms ease-out forwards;
   }
 
   @keyframes ferry-fade-in {
@@ -242,6 +304,11 @@
       animation-duration: 1ms;
       animation-delay: 0ms !important;
       transition-duration: 1ms;
+    }
+
+    .pasture-decoration {
+      animation-duration: 1ms;
+      animation-delay: 0ms !important;
     }
   }
 </style>

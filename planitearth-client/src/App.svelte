@@ -29,6 +29,8 @@
   let answers = $state<{
     flights?: string;
     ferry?: string;
+    flightExhaustLevel?: number;
+    ferryExhaustLevel?: number;
     plasticBottles?: number;
     redMeatCount?: number;
   }>({});
@@ -107,6 +109,10 @@
     startIntermission("ferry");
   }
 
+  function saveFlightExhaustLevel(level: number) {
+    answers.flightExhaustLevel = level;
+  }
+
   function startIntermission(nextStep: "ferry" | "plastics" | "red-meat") {
     const intermissionStep: Record<typeof nextStep, Step> = {
       ferry: "earth-intermission",
@@ -124,6 +130,10 @@
   function saveFerryAnswer(answer: string) {
     answers.ferry = answer;
     startIntermission("plastics");
+  }
+
+  function saveFerryExhaustLevel(level: number) {
+    answers.ferryExhaustLevel = level;
   }
 
   function savePlasticAnswer(bottleCount: number) {
@@ -176,6 +186,16 @@
     fadeFlightPath={currentStep === "ferry"}
     fadeDecorations={currentStep === "plastics"}
     fadeBottles={currentStep === "red-meat"}
+    flightExhaustLevel={
+      currentStep === "flights" || currentStep === "earth-intermission"
+        ? (answers.flightExhaustLevel ?? 0)
+        : 0
+    }
+    ferryExhaustLevel={
+      currentStep === "ferry" || currentStep === "plastic-earth-intermission"
+        ? (answers.ferryExhaustLevel ?? 0)
+        : 0
+    }
     plasticBottleCount={
       currentStep === "plastics" || currentStep === "meat-earth-intermission" || currentStep === "red-meat"
         ? (answers.plasticBottles ?? 1)
@@ -188,9 +208,12 @@
     {#if currentStep === "landing"}
       <LandingContent onBegin={begin} />
     {:else if currentStep === "flights"}
-      <FlightQuestionContent onNext={next} />
+      <FlightQuestionContent onNext={next} onSelectionChange={saveFlightExhaustLevel} />
     {:else if currentStep === "ferry"}
-      <FerryQuestionContent onNext={saveFerryAnswer} />
+      <FerryQuestionContent
+        onNext={saveFerryAnswer}
+        onSelectionChange={saveFerryExhaustLevel}
+      />
     {:else if currentStep === "plastics"}
       <PlasticQuestionContent
         onNext={nextFromPlastics}
