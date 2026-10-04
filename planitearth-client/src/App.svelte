@@ -1,134 +1,157 @@
 <script lang="ts">
-  import Phaser from "phaser";
   import { onMount } from "svelte";
-  import { MainScene } from "./lib/game/MainScene";
+  import EarthArtwork from "./lib/EarthArtwork.svelte";
+  import FerryQuestionContent from "./lib/contents/FerryQuestionContent.svelte";
+  import FlightFactContent from "./lib/contents/FlightFactContent.svelte";
+  import FlightQuestionContent from "./lib/contents/FlightQuestionContent.svelte";
+  import LandingContent from "./lib/contents/LandingContent.svelte";
 
-  let game: Phaser.Game;
-  let gameRoot: HTMLDivElement;
+  type Step = "landing" | "flights" | "flight-fact" | "earth-intermission" | "ferry";
+  type Viewport = { width: number; height: number };
+  type EarthLayout = {
+    size: (viewport: Viewport) => number;
+    position: (viewport: Viewport, size: number) => { left: number; top: number };
+    showFlightPath: boolean;
+  };
+
+  let viewport = $state({ width: 0, height: 0 });
+  let currentStep = $state<Step>("landing");
+  let answers = $state<{ flights?: string; ferry?: string }>({});
+  let intermissionTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  const earthTransitionDuration = 2000;
+  const earthIntermissionDuration = 1000;
+
+  const flightEarthLayout: EarthLayout = {
+    size: ({ height }) => height / 0.2,
+    position: ({ width, height }, size) => ({
+      left: width / 2 - size / 2,
+      top: height * 0.56,
+    }),
+    showFlightPath: true,
+  };
+
+  const centeredEarthLayout: EarthLayout = {
+    size: ({ width, height }) => Math.min(width * 0.7, height * 0.85, 640),
+    position: ({ width, height }, size) => ({
+      left: width / 2 - size / 2,
+      top: height / 2 - size / 2,
+    }),
+    showFlightPath: false,
+  };
+
+  const stepStates: Record<Step, EarthLayout> = {
+    landing: {
+      size: ({ width, height }) =>
+        Math.min(width < 900 ? width * 0.9 : width * 0.45, height * 0.9, 640),
+      position: ({ width, height }, size) => ({
+        left: (width < 900 ? width / 2 : width * 0.25) - size / 2,
+        top: height / 2 - size / 2,
+      }),
+      showFlightPath: false,
+    },
+    flights: flightEarthLayout,
+    "flight-fact": flightEarthLayout,
+    "earth-intermission": centeredEarthLayout,
+    ferry: {
+      size: ({ height }) => height * 2,
+      position: ({ height }, size) => ({
+        left: -size * 0.42,
+        top: height - size * 0.45,
+      }),
+      showFlightPath: false,
+    },
+  };
 
   function begin() {
-    game.events.emit("begin");
+    currentStep = "flights";
+  }
+
+  function next(answer: string) {
+    answers.flights = answer;
+    currentStep = "flight-fact";
+  }
+
+  function continueToFerry() {
+    currentStep = "earth-intermission";
+    intermissionTimeout = setTimeout(
+      () => (currentStep = "ferry"),
+      earthTransitionDuration + earthIntermissionDuration,
+    );
+  }
+
+  function saveFerryAnswer(answer: string) {
+    answers.ferry = answer;
+  }
+
+  let earthTransform = $derived.by(() => {
+    const { width, height } = viewport;
+    if (!width || !height) return "translate3d(-1000px, -1000px, 0) scale(0)";
+
+    const layout = stepStates[currentStep];
+    const earthSize = layout.size(viewport);
+    const scale = earthSize / 804;
+    const { left, top } = layout.position(viewport, earthSize);
+
+    return `translate3d(${left}px, ${top}px, 0) scale(${scale})`;
+  });
+
+  function measureViewport() {
+    viewport = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
   }
 
   onMount(() => {
-    game = new Phaser.Game({
-      parent: gameRoot,
-      type: Phaser.AUTO,
-      transparent: true,
-      scale: {
-        mode: Phaser.Scale.RESIZE,
-        width: gameRoot.clientWidth,
-        height: gameRoot.clientHeight,
-      },
-      scene: MainScene,
-    });
+    measureViewport();
+    window.addEventListener("resize", measureViewport);
 
-    const resizeObserver = new ResizeObserver(([entry]) => {
-      game.scale.resize(entry.contentRect.width, entry.contentRect.height);
-    });
-    resizeObserver.observe(gameRoot);
-
-    return () => {
-      resizeObserver.disconnect();
-      game.destroy(true);
-    };
+    return () => window.removeEventListener("resize", measureViewport);
   });
+
+  onMount(() => () => clearTimeout(intermissionTimeout));
 </script>
 
 <main>
-  <section class="earth-panel" aria-label="Illustration of Earth">
-    <div id="game-root" bind:this={gameRoot}></div>
-  </section>
-  <section class="landing-copy">
-    <div class="copy-content">
-      <h1 class="text-title">PlanItEarth</h1>
-      <p class="text-subtitle subtitle">Helping the planet? Plan it!</p>
-      <p class="text-body intro">Let's find out what your climate action looks like.</p>
-      <button class="button" type="button" onclick={begin}>Begin</button>
-    </div>
-  </section>
+  <EarthArtwork
+    transform={earthTransform}
+    showFlightPath={stepStates[currentStep].showFlightPath}
+  />
+  <div class="content-stage">
+    {#if currentStep === "landing"}
+      <LandingContent onBegin={begin} />
+    {:else if currentStep === "flights"}
+      <FlightQuestionContent onNext={next} />
+    {:else if currentStep === "flight-fact"}
+      <FlightFactContent onContinue={continueToFerry} />
+    {:else if currentStep === "ferry"}
+      <FerryQuestionContent onNext={saveFerryAnswer} />
+    {/if}
+  </div>
 </main>
 
 <style>
   main {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    position: relative;
     min-height: 100vh;
     min-height: 100svh;
-  }
-
-  .earth-panel,
-  .landing-copy {
-    min-width: 0;
-    min-height: 100vh;
-    min-height: 100svh;
-  }
-
-  .earth-panel {
-    display: grid;
-    place-items: center;
-  }
-
-  #game-root {
-    width: 100%;
-    height: 100%;
     overflow: hidden;
+    isolation: isolate;
   }
 
-  #game-root :global(canvas) {
-    display: block;
+  .content-stage {
+    position: absolute;
+    inset: 0;
   }
 
-  .landing-copy {
-    display: flex;
-    align-items: center;
-    padding: clamp(2rem, 5vw, 5rem);
-    box-sizing: border-box;
+  .content-stage :global(.landing-content),
+  .content-stage :global(.question-content),
+  .content-stage :global(.fact-content),
+  .content-stage :global(.ferry-question-content) {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
   }
-
-  .copy-content {
-    width: min(100%, 42rem);
-  }
-
-  p {
-    margin: 0;
-  }
-
-  .subtitle {
-    margin-top: 0.75rem;
-    margin-bottom: 2rem;
-  }
-
-  .intro {
-    margin-bottom: 2rem;
-  }
-
-  @media (max-width: 900px) {
-    main {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: minmax(18rem, 42svh) auto;
-    }
-
-    .earth-panel {
-      min-height: 0;
-    }
-
-    .landing-copy {
-      min-height: 0;
-      align-items: flex-start;
-      justify-content: center;
-      padding: 1rem 1.5rem 3rem;
-      text-align: center;
-    }
-
-    .subtitle {
-      margin-bottom: 1.25rem;
-      margin-top: 0;
-    }
-
-    .intro {
-      margin-bottom: 1.5rem;
-    }
-  }
-
 </style>
