@@ -8,6 +8,7 @@
   import PlasticQuestionContent from "./lib/contents/PlasticQuestionContent.svelte";
   import ReadyImpactContent from "./lib/contents/ReadyImpactContent.svelte";
   import RedMeatQuestionContent from "./lib/contents/RedMeatQuestionContent.svelte";
+  import { createQuestionResponses } from "./lib/state/questions-and-answers.svelte";
 
   type Step =
     | "landing"
@@ -33,16 +34,39 @@
   let impactRevealStarted = $state(false);
   let earthShaking = $state(false);
   let screenWhitening = $state(false);
-  let answers = $state<{
-    flights?: string;
-    ferry?: string;
-    flightExhaustLevel?: number;
-    ferryExhaustLevel?: number;
-    plasticBottles?: number;
-    redMeatCount?: number;
-  }>({});
+  let responsesPrinted = false;
+  const responses = createQuestionResponses();
   let intermissionTimeout: ReturnType<typeof setTimeout> | undefined;
   let impactRevealTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  const flightOptions = ["0", "1-2", "2-4", "5-7", "8-10", "11+"];
+  const ferryOptions = ["0", "1-7", "8-15", "16-23", "24-30", "31+"];
+  const plasticOptions = [
+    { label: "I do my best to avoid single-use plastics", bottleCount: 1 },
+    { label: "I try to avoid it, but could be better", bottleCount: 5 },
+    { label: "It doesn't matter to me", bottleCount: 20 },
+  ];
+  const redMeatOptions = [
+    { label: "0", count: 0 },
+    { label: "1-2", count: 2 },
+    { label: "2-4", count: 3 },
+    { label: "5-7", count: 6 },
+    { label: "8-10", count: 9 },
+    { label: "11+", count: 11 },
+  ];
+
+  let flightExhaustLevel = $derived(
+    flightOptions.indexOf(responses.get("flights")?.answer ?? "0"),
+  );
+  let ferryExhaustLevel = $derived(
+    ferryOptions.indexOf(responses.get("ferry")?.answer ?? "0"),
+  );
+  let plasticBottleCount = $derived(
+    plasticOptions.find(({ label }) => label === responses.get("plastics")?.answer)?.bottleCount ?? 1,
+  );
+  let redMeatCount = $derived(
+    redMeatOptions.find(({ label }) => label === responses.get("redMeat")?.answer)?.count ?? 0,
+  );
 
   const earthTransitionDuration = 2000;
   const earthIntermissionDuration = 1000;
@@ -125,12 +149,12 @@
   }
 
   function next(answer: string) {
-    answers.flights = answer;
+    responses.set("flights", answer);
     startIntermission("ferry");
   }
 
   function saveFlightExhaustLevel(level: number) {
-    answers.flightExhaustLevel = level;
+    responses.set("flights", flightOptions[level]);
   }
 
   function startIntermission(
@@ -151,25 +175,29 @@
   }
 
   function saveFerryAnswer(answer: string) {
-    answers.ferry = answer;
+    responses.set("ferry", answer);
     startIntermission("plastics");
   }
 
   function saveFerryExhaustLevel(level: number) {
-    answers.ferryExhaustLevel = level;
+    responses.set("ferry", ferryOptions[level]);
   }
 
   function savePlasticAnswer(bottleCount: number) {
-    answers.plasticBottles = bottleCount;
+    const answer = plasticOptions.find((option) => option.bottleCount === bottleCount);
+    if (!answer) throw new Error(`Unknown plastic bottle count: ${bottleCount}`);
+    responses.set("plastics", answer.label);
   }
 
   function nextFromPlastics(bottleCount: number) {
-    answers.plasticBottles = bottleCount;
+    savePlasticAnswer(bottleCount);
     startIntermission("red-meat");
   }
 
   function saveRedMeatAnswer(count: number) {
-    answers.redMeatCount = count;
+    const answer = redMeatOptions.find((option) => option.count === count);
+    if (!answer) throw new Error(`Unknown red meat count: ${count}`);
+    responses.set("redMeat", answer.label);
   }
 
   function finishSurvey(count: number) {
@@ -185,6 +213,18 @@
       earthShaking = true;
       screenWhitening = true;
     }, earthTransitionDuration);
+  }
+
+  function printResponsesAfterWhiteout(event: TransitionEvent) {
+    if (
+      event.target !== event.currentTarget ||
+      event.propertyName !== "opacity" ||
+      !screenWhitening ||
+      responsesPrinted
+    ) {
+      return;
+    }
+
   }
 
   let earthTransform = $derived.by(() => {
@@ -227,21 +267,25 @@
     fadeBottles={currentStep === "red-meat"}
     flightExhaustLevel={
       currentStep === "flights" || currentStep === "earth-intermission"
-        ? (answers.flightExhaustLevel ?? 0)
+        ? flightExhaustLevel
         : 0
     }
     ferryExhaustLevel={
       currentStep === "ferry" || currentStep === "plastic-earth-intermission"
-        ? (answers.ferryExhaustLevel ?? 0)
+        ? ferryExhaustLevel
         : 0
     }
     plasticBottleCount={
       currentStep === "plastics" || currentStep === "meat-earth-intermission" || currentStep === "red-meat"
-        ? (answers.plasticBottles ?? 1)
+        ? plasticBottleCount
         : 0
     }
-    showPasture={currentStep === "red-meat"}
-    redMeatCount={currentStep === "red-meat" ? (answers.redMeatCount ?? 0) : 0}
+    showPasture={currentStep === "red-meat" || currentStep === "final-earth-intermission"}
+    redMeatCount={
+      currentStep === "red-meat" || currentStep === "final-earth-intermission"
+        ? redMeatCount
+        : 0
+    }
     earthShaking={earthShaking}
   />
   <div class="content-stage" class:impact-fading={impactRevealStarted}>
@@ -268,7 +312,12 @@
       <ReadyImpactContent onYes={beginImpactReveal} />
     {/if}
   </div>
-  <div class:active={screenWhitening} class="impact-whiteout" aria-hidden="true"></div>
+  <div
+    class:active={screenWhitening}
+    class="impact-whiteout"
+    aria-hidden="true"
+    ontransitionend={printResponsesAfterWhiteout}
+  ></div>
 </main>
 
 <style>

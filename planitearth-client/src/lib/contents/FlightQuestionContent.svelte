@@ -2,6 +2,7 @@
   import { cubicOut } from "svelte/easing";
   import { fly } from "svelte/transition";
   import { Button } from "$lib/components/ui/button/index.js";
+  import { questionTexts } from "$lib/state/question-texts.js";
 
   let {
     onNext,
@@ -26,7 +27,7 @@
   in:fly={{ y: -120, duration: 2000, easing: cubicOut }}
   out:fly={{ y: 120, duration: 2000, easing: cubicOut }}
 >
-  <h1 id="flight-question" class="text-display">How many flights do you take per year?</h1>
+  <h1 id="flight-question" class="text-display">{questionTexts.flights}</h1>
   <div class="flight-control">
     <label class="sr-only" for="flight-slider">Flights per year</label>
     <input

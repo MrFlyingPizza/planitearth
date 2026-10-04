@@ -2,6 +2,7 @@
   import { cubicOut } from "svelte/easing";
   import { fly } from "svelte/transition";
   import { Button } from "$lib/components/ui/button/index.js";
+  import { questionTexts } from "$lib/state/question-texts.js";
 
   let {
     onNext,
@@ -33,7 +34,7 @@
   in:fly={{ y: -120, duration: 2000, easing: cubicOut }}
 >
   <h1 id="red-meat-question" class="text-display">
-    How often do you have red meat in your meals a week?
+    {questionTexts.redMeat}
   </h1>
   <p>(e.g. beef, lamb, etc.)</p>
   <div class="red-meat-control">

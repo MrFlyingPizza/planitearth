@@ -2,6 +2,7 @@
   import { cubicOut } from "svelte/easing";
   import { fly } from "svelte/transition";
   import { Button } from "$lib/components/ui/button/index.js";
+  import { questionTexts } from "$lib/state/question-texts.js";
 
   let {
     onNext,
@@ -25,9 +26,7 @@
   aria-labelledby="ferry-question"
   in:fly={{ y: -120, duration: 2000, easing: cubicOut }}
 >
-  <h1 id="ferry-question" class="text-display">
-    On average, how many days per year do you travel by ferry?
-  </h1>
+  <h1 id="ferry-question" class="text-display">{questionTexts.ferry}</h1>
   <div class="ferry-control">
     <label class="sr-only" for="ferry-slider">Days traveling by ferry per year</label>
     <input

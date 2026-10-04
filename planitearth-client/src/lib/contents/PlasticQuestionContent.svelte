@@ -2,6 +2,7 @@
   import { cubicOut } from "svelte/easing";
   import { fly } from "svelte/transition";
   import { Button } from "$lib/components/ui/button/index.js";
+  import { questionTexts } from "$lib/state/question-texts.js";
 
   let {
     onNext,
@@ -30,7 +31,7 @@
   in:fly={{ x: -100, duration: 1200, easing: cubicOut }}
 >
   <h1 id="plastic-question" class="text-subheading">
-    How would you describe your consumption of single-use plastics?
+    {questionTexts.plastics}
   </h1>
   <p class="plastic-question-description">
     (e.g. plastic bags, bottles, straws, take-out containers, etc.)
