@@ -180,28 +180,6 @@
     />
   {/if}
   <image href={earthUrl} x="0" y="0" width="804" height="806" />
-  <image
-    href={eyesUrl}
-    x={eyeBase.x + eyeOffset.x}
-    y={eyeBase.y + eyeOffset.y}
-    width={eyeBase.width}
-    height={eyeBase.height}
-    opacity="0.95"
-  />
-  {#if showFlightPath}
-    <path
-      id="flight-path-front"
-      class:fade-out={fadeFlightPath}
-      d="M 737 403 A 335 360 0 0 0 67 403"
-      class="flight-path"
-      fill="none"
-      stroke="#ffffff"
-      stroke-width="0.8"
-      stroke-dasharray="5 5"
-      stroke-linecap="round"
-      opacity="0.9"
-    />
-  {/if}
   {#if showPasture}
     <image
       class="pasture-decoration"
@@ -230,6 +208,28 @@
         transition:fade|global={{ duration: 500, delay: index * 80 + 40 }}
       />
     {/each}
+  {/if}
+  <image
+    href={eyesUrl}
+    x={eyeBase.x + eyeOffset.x}
+    y={eyeBase.y + eyeOffset.y}
+    width={eyeBase.width}
+    height={eyeBase.height}
+    opacity="0.95"
+  />
+  {#if showFlightPath}
+    <path
+      id="flight-path-front"
+      class:fade-out={fadeFlightPath}
+      d="M 737 403 A 335 360 0 0 0 67 403"
+      class="flight-path"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="0.8"
+      stroke-dasharray="5 5"
+      stroke-linecap="round"
+      opacity="0.9"
+    />
   {/if}
   {#each flightExhaustParticles.filter((particle) => particle.index % 5 < flightExhaustLevel) as particle (particle.index)}
     <circle
