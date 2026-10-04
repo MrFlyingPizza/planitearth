@@ -4,11 +4,16 @@
   import EarthArtwork from "./lib/EarthArtwork.svelte";
   import FerryQuestionContent from "./lib/contents/FerryQuestionContent.svelte";
   import FlightQuestionContent from "./lib/contents/FlightQuestionContent.svelte";
+  import ImpactFeedbackContent from "./lib/contents/ImpactFeedbackContent.svelte";
   import LandingContent from "./lib/contents/LandingContent.svelte";
   import PlasticQuestionContent from "./lib/contents/PlasticQuestionContent.svelte";
   import ReadyImpactContent from "./lib/contents/ReadyImpactContent.svelte";
   import RedMeatQuestionContent from "./lib/contents/RedMeatQuestionContent.svelte";
-  import { createQuestionResponses } from "./lib/state/questions-and-answers.svelte";
+  import { parseImpactFeedback, type ImpactFeedback } from "./lib/state/impact-feedback";
+  import {
+    createQuestionResponses,
+    type QuestionResponse,
+  } from "./lib/state/questions-and-answers.svelte";
 
   type Step =
     | "landing"
@@ -34,7 +39,9 @@
   let impactRevealStarted = $state(false);
   let earthShaking = $state(false);
   let screenWhitening = $state(false);
-  let responsesPrinted = false;
+  let feedbackRequested = false;
+  let feedbackResult = $state<ImpactFeedback | undefined>();
+  let feedbackError = $state<string | undefined>();
   const responses = createQuestionResponses();
   let intermissionTimeout: ReturnType<typeof setTimeout> | undefined;
   let impactRevealTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -215,16 +222,68 @@
     }, earthTransitionDuration);
   }
 
-  function printResponsesAfterWhiteout(event: TransitionEvent) {
+  async function requestImpactFeedback(
+    responseData: QuestionResponse[],
+  ): Promise<ImpactFeedback> {
+    const maxRetries = 2;
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      try {
+        const response = await fetch("/api/client-feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(responseData),
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          throw new Error(
+            `Feedback API request failed (${response.status}): ${errorBody}`,
+          );
+        }
+
+        return parseImpactFeedback(await response.json());
+      } catch (error) {
+        lastError = error;
+        if (attempt === maxRetries) break;
+
+        console.warn(
+          `Feedback API attempt ${attempt + 1} failed; retrying.`,
+          error,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 500 * (attempt + 1)));
+      }
+    }
+
+    throw lastError;
+  }
+
+  async function postResponsesAfterWhiteout(event: TransitionEvent) {
     if (
       event.target !== event.currentTarget ||
       event.propertyName !== "opacity" ||
       !screenWhitening ||
-      responsesPrinted
+      feedbackRequested
     ) {
       return;
     }
 
+    feedbackRequested = true;
+    const responseData = Object.values(responses.all).filter(
+      (response) => response !== undefined,
+    );
+
+    try {
+      const result = await requestImpactFeedback(responseData);
+      console.log("Feedback API response:", result);
+      feedbackResult = result;
+      screenWhitening = false;
+    } catch (error) {
+      console.error("Failed to submit feedback:", error);
+      feedbackError = "We couldn't load your impact feedback. Please try again later.";
+      screenWhitening = false;
+    }
   }
 
   let earthTransform = $derived.by(() => {
@@ -312,11 +371,16 @@
       <ReadyImpactContent onYes={beginImpactReveal} />
     {/if}
   </div>
+  {#if feedbackResult}
+    <ImpactFeedbackContent result={feedbackResult} />
+  {:else if feedbackError}
+    <div class="impact-feedback-error" role="alert">{feedbackError}</div>
+  {/if}
   <div
     class:active={screenWhitening}
     class="impact-whiteout"
     aria-hidden="true"
-    ontransitionend={printResponsesAfterWhiteout}
+    ontransitionend={postResponsesAfterWhiteout}
   ></div>
 </main>
 
@@ -352,6 +416,19 @@
 
   .impact-whiteout.active {
     opacity: 1;
+  }
+
+  .impact-feedback-error {
+    position: fixed;
+    z-index: 1;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+    background: #fff;
+    color: #282b41;
+    text-align: center;
+    font-size: clamp(1.25rem, 3vw, 2rem);
   }
 
   @media (prefers-reduced-motion: reduce) {
